@@ -7,20 +7,20 @@
 
 ### Package Setup
 
-- [ ] **PKG-01**: Project uses pyproject.toml with hatchling build backend
+- [x] **PKG-01**: Project uses pyproject.toml with hatchling build backend
 - [ ] **PKG-02**: Package is installable via `pip install pcn-torch`
 - [ ] **PKG-03**: Package published to PyPI as `pcn-torch`
 - [ ] **PKG-04**: README with installation instructions, quickstart code, and API overview
-- [ ] **PKG-05**: MIT license included
+- [x] **PKG-05**: MIT license included
 
 ### Core Model
 
-- [ ] **MOD-01**: PCNLayer class (nn.Module) with weight matrix, activation function, and its derivative
+- [x] **MOD-01**: PCNLayer class (nn.Module) with weight matrix, activation function, and its derivative
 - [ ] **MOD-02**: PredictiveCodingNetwork class (nn.Module) managing the full layer hierarchy
 - [ ] **MOD-03**: Random latent initialization for each forward pass
 - [ ] **MOD-04**: Prediction error and gain-modulated error computation across all layers
 - [ ] **MOD-05**: Linear readout layer (no bias) mapping top latent to output prediction
-- [ ] **MOD-06**: Configurable layer dimensions, activation functions, and hyperparameters
+- [x] **MOD-06**: Configurable layer dimensions, activation functions, and hyperparameters
 
 ### Training
 
@@ -74,17 +74,17 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PKG-01 | Phase 1 | Pending |
+| PKG-01 | Phase 1 | Complete |
 | PKG-02 | Phase 4 | Pending |
 | PKG-03 | Phase 4 | Pending |
 | PKG-04 | Phase 4 | Pending |
-| PKG-05 | Phase 1 | Pending |
-| MOD-01 | Phase 1 | Pending |
+| PKG-05 | Phase 1 | Complete |
+| MOD-01 | Phase 1 | Complete |
 | MOD-02 | Phase 2 | Pending |
 | MOD-03 | Phase 2 | Pending |
 | MOD-04 | Phase 2 | Pending |
 | MOD-05 | Phase 2 | Pending |
-| MOD-06 | Phase 1 | Pending |
+| MOD-06 | Phase 1 | Complete |
 | TRN-01 | Phase 3 | Pending |
 | TRN-02 | Phase 3 | Pending |
 | TRN-03 | Phase 3 | Pending |
@@ -106,4 +106,4 @@
 
 ---
 *Requirements defined: 2026-02-20*
-*Last updated: 2026-02-20 after roadmap creation (traceability updated)*
+*Last updated: 2026-02-20 (Phase 1 requirements marked Complete)*
