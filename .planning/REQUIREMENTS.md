@@ -74,36 +74,36 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PKG-01 | - | Pending |
-| PKG-02 | - | Pending |
-| PKG-03 | - | Pending |
-| PKG-04 | - | Pending |
-| PKG-05 | - | Pending |
-| MOD-01 | - | Pending |
-| MOD-02 | - | Pending |
-| MOD-03 | - | Pending |
-| MOD-04 | - | Pending |
-| MOD-05 | - | Pending |
-| MOD-06 | - | Pending |
-| TRN-01 | - | Pending |
-| TRN-02 | - | Pending |
-| TRN-03 | - | Pending |
-| TRN-04 | - | Pending |
-| TRN-05 | - | Pending |
-| NRG-01 | - | Pending |
-| NRG-02 | - | Pending |
-| EXA-01 | - | Pending |
-| EXA-02 | - | Pending |
-| TST-01 | - | Pending |
-| TST-02 | - | Pending |
-| TST-03 | - | Pending |
-| TST-04 | - | Pending |
+| PKG-01 | Phase 1 | Pending |
+| PKG-02 | Phase 4 | Pending |
+| PKG-03 | Phase 4 | Pending |
+| PKG-04 | Phase 4 | Pending |
+| PKG-05 | Phase 1 | Pending |
+| MOD-01 | Phase 1 | Pending |
+| MOD-02 | Phase 2 | Pending |
+| MOD-03 | Phase 2 | Pending |
+| MOD-04 | Phase 2 | Pending |
+| MOD-05 | Phase 2 | Pending |
+| MOD-06 | Phase 1 | Pending |
+| TRN-01 | Phase 3 | Pending |
+| TRN-02 | Phase 3 | Pending |
+| TRN-03 | Phase 3 | Pending |
+| TRN-04 | Phase 3 | Pending |
+| TRN-05 | Phase 3 | Pending |
+| NRG-01 | Phase 3 | Pending |
+| NRG-02 | Phase 3 | Pending |
+| EXA-01 | Phase 4 | Pending |
+| EXA-02 | Phase 4 | Pending |
+| TST-01 | Phase 3 | Pending |
+| TST-02 | Phase 3 | Pending |
+| TST-03 | Phase 3 | Pending |
+| TST-04 | Phase 3 | Pending |
 
 **Coverage:**
 - v1 requirements: 24 total
-- Mapped to phases: 0
-- Unmapped: 24 (will be mapped during roadmap creation)
+- Mapped to phases: 24
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-20*
-*Last updated: 2026-02-20 after initial definition*
+*Last updated: 2026-02-20 after roadmap creation (traceability updated)*

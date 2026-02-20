@@ -50,6 +50,7 @@ A clean, PyTorch-native PCN implementation that lets anyone empirically explore 
 
 - **Tech stack**: Python + PyTorch only — no other ML frameworks
 - **Packaging**: PyPI distribution via standard Python packaging (pyproject.toml)
+- **GitHub**: Repository at github.com/emv-dev/pcn-torch
 - **Scope**: MLP layers only — no conv/recurrent/attention for v1
 - **Learning mode**: Supervised only (classification + regression) for v1
 - **Compatibility**: Python 3.10+, PyTorch 2.0+
