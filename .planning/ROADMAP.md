@@ -29,10 +29,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. PCNLayer accepts configurable dimensions and activation function, and its forward pass produces predictions of the correct shape
   4. Ruff, mypy, and pytest all pass in CI (GitHub Actions) across Python 3.10-3.13
   5. Activation functions (sigmoid, tanh, relu) are available with explicit hand-coded derivatives (no autograd)
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 01-01: Project scaffold (pyproject.toml, src layout, CI, license) and core types/activations/PCNLayer
+- [ ] 01-01-PLAN.md -- Package scaffold, types, activations (with hand-coded derivatives), PCNLayer, CI, and tests
 
 ### Phase 2: Core Model
 **Goal**: Developers can construct a full PredictiveCodingNetwork with configurable layers and obtain predictions and error signals
