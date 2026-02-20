@@ -55,6 +55,12 @@ None yet.
 
 - Check PyPI name availability for `pcn-torch` before Phase 1 begins
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 001 | Add README linking all planning documents | 2026-02-20 | 0e9a31c | [001-add-readme-linking-planning-docs](./quick/001-add-readme-linking-planning-docs/) |
+
 ## Session Continuity
 
 Last session: 2026-02-20T15:27Z
