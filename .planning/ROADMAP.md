@@ -12,7 +12,7 @@ This roadmap delivers pcn-torch as a pip-installable PyTorch library implementin
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation** - Package scaffold, PCNLayer, types, activations, and configuration
+- [x] **Phase 1: Foundation** - Package scaffold, PCNLayer, types, activations, and configuration (2026-02-20)
 - [ ] **Phase 2: Core Model** - PredictiveCodingNetwork hierarchy, error computation, and readout
 - [ ] **Phase 3: Training + Energy + Tests** - Inference/learning loops, energy tracking, and correctness tests
 - [ ] **Phase 4: Integration + Publishing** - CIFAR-10 example, PyPI publish, and README
@@ -32,7 +32,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 1 plan
 
 Plans:
-- [ ] 01-01-PLAN.md -- Package scaffold, types, activations (with hand-coded derivatives), PCNLayer, CI, and tests
+- [x] 01-01-PLAN.md -- Package scaffold, types, activations (with hand-coded derivatives), PCNLayer, CI, and tests (2026-02-20)
 
 ### Phase 2: Core Model
 **Goal**: Developers can construct a full PredictiveCodingNetwork with configurable layers and obtain predictions and error signals
@@ -86,11 +86,11 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/1 | Not started | - |
+| 1. Foundation | 1/1 | Complete | 2026-02-20 |
 | 2. Core Model | 0/1 | Not started | - |
 | 3. Training + Energy + Tests | 0/2 | Not started | - |
 | 4. Integration + Publishing | 0/1 | Not started | - |
 
 ---
 *Roadmap created: 2026-02-20*
-*Last updated: 2026-02-20*
+*Last updated: 2026-02-20 (Phase 1 complete)*
