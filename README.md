@@ -1,8 +1,12 @@
 # pcn-torch
 
-A clean, PyTorch-native implementation of Predictive Coding Networks (PCNs) from [arXiv:2506.06332v1](https://arxiv.org/abs/2506.06332).
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue?logo=python&logoColor=white)](https://www.python.org/downloads/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-ee4c2c?logo=pytorch&logoColor=white)](https://pytorch.org/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Status](https://img.shields.io/badge/status-pre--release-orange)](https://github.com/emv-dev/pcn-torch)
+[![arXiv](https://img.shields.io/badge/arXiv-2506.06332-b31b1b?logo=arxiv&logoColor=white)](https://arxiv.org/abs/2506.06332)
 
-Status: Pre-release | Phase 1 of 4 (Foundation) | Not yet started
+A clean, PyTorch-native implementation of Predictive Coding Networks (PCNs) from [arXiv:2506.06332v1](https://arxiv.org/abs/2506.06332).
 
 ## What is this?
 
