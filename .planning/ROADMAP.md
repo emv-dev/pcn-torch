@@ -44,10 +44,10 @@ Plans:
   3. `compute_errors()` returns prediction errors and gain-modulated errors across all layers with correct shapes
   4. The readout layer is `nn.Linear(..., bias=False)` and maps the top latent to output predictions
   5. The supervised error signal is correctly projected back to latent space via W_out^T
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 02-01: PredictiveCodingNetwork, latent init, error computation, and readout layer
+- [ ] 02-01-PLAN.md -- PredictiveCodingNetwork class, PCNErrors, latent init, error computation, readout, and tests
 
 ### Phase 3: Training + Energy + Tests
 **Goal**: A PredictiveCodingNetwork can be trained end-to-end on batched data using local Hebbian-like rules, with energy tracking and verified algorithmic correctness
