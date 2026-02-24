@@ -59,11 +59,11 @@ Plans:
   3. The network trains on both classification (one-hot targets) and regression (continuous targets) without code changes
   4. Energy trajectories (per-step, per-batch) are logged during both inference and learning, and are accessible after training
   5. Unit tests verify: synchronous latent updates (not interleaved), gain-modulated error computation, no autograd graph construction, and correct W_out^T supervised error projection
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 03-01: Inference loop, learning loop, and trainer function (train_pcn, test_pcn)
-- [ ] 03-02: Energy tracking module and algorithmic correctness unit tests
+- [ ] 03-01-PLAN.md -- Energy module, TrainConfig/TrainHistory/TrainCallback, RichCallback, train_pcn, test_pcn training loops
+- [ ] 03-02-PLAN.md -- Algorithmic correctness tests (TST-02, TST-03, TST-04), energy tests, and public API exports
 
 ### Phase 4: Integration + Publishing
 **Goal**: Anyone can `pip install pcn-torch`, run the CIFAR-10 example, and see the library work
