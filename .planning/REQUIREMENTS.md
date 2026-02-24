@@ -24,16 +24,16 @@
 
 ### Training
 
-- [ ] **TRN-01**: Inference loop — iterative latent updates under torch.no_grad()
-- [ ] **TRN-02**: Learning loop — local Hebbian-like weight updates, batch-averaged
-- [ ] **TRN-03**: Supervised error signal propagated into top latent layer
-- [ ] **TRN-04**: Support for classification (one-hot targets) and regression (continuous targets)
-- [ ] **TRN-05**: Mixed precision support (autocast) during inference on CUDA
+- [x] **TRN-01**: Inference loop — iterative latent updates under torch.no_grad()
+- [x] **TRN-02**: Learning loop — local Hebbian-like weight updates, batch-averaged
+- [x] **TRN-03**: Supervised error signal propagated into top latent layer
+- [x] **TRN-04**: Support for classification (one-hot targets) and regression (continuous targets)
+- [x] **TRN-05**: Mixed precision support (autocast) during inference on CUDA
 
 ### Energy Tracking
 
-- [ ] **NRG-01**: Per-step energy logging during both inference and learning
-- [ ] **NRG-02**: Batch-averaged energy trajectories accessible after training
+- [x] **NRG-01**: Per-step energy logging during both inference and learning
+- [x] **NRG-02**: Batch-averaged energy trajectories accessible after training
 
 ### Example
 
@@ -42,10 +42,10 @@
 
 ### Testing
 
-- [ ] **TST-01**: Unit tests for synchronous latent updates (snapshot-then-update, not interleaved)
-- [ ] **TST-02**: Unit tests for gain-modulated error computation
-- [ ] **TST-03**: Unit test verifying no autograd graph is built during training
-- [ ] **TST-04**: Unit test for correct top-layer supervised error signal (W_out^T projection)
+- [x] **TST-01**: Unit tests for synchronous latent updates (snapshot-then-update, not interleaved)
+- [x] **TST-02**: Unit tests for gain-modulated error computation
+- [x] **TST-03**: Unit test verifying no autograd graph is built during training
+- [x] **TST-04**: Unit test for correct top-layer supervised error signal (W_out^T projection)
 
 ## v2 Requirements
 
@@ -85,19 +85,19 @@
 | MOD-04 | Phase 2 | Complete |
 | MOD-05 | Phase 2 | Complete |
 | MOD-06 | Phase 1 | Complete |
-| TRN-01 | Phase 3 | Pending |
-| TRN-02 | Phase 3 | Pending |
-| TRN-03 | Phase 3 | Pending |
-| TRN-04 | Phase 3 | Pending |
-| TRN-05 | Phase 3 | Pending |
-| NRG-01 | Phase 3 | Pending |
-| NRG-02 | Phase 3 | Pending |
+| TRN-01 | Phase 3 | Complete |
+| TRN-02 | Phase 3 | Complete |
+| TRN-03 | Phase 3 | Complete |
+| TRN-04 | Phase 3 | Complete |
+| TRN-05 | Phase 3 | Complete |
+| NRG-01 | Phase 3 | Complete |
+| NRG-02 | Phase 3 | Complete |
 | EXA-01 | Phase 4 | Pending |
 | EXA-02 | Phase 4 | Pending |
-| TST-01 | Phase 3 | Pending |
-| TST-02 | Phase 3 | Pending |
-| TST-03 | Phase 3 | Pending |
-| TST-04 | Phase 3 | Pending |
+| TST-01 | Phase 3 | Complete |
+| TST-02 | Phase 3 | Complete |
+| TST-03 | Phase 3 | Complete |
+| TST-04 | Phase 3 | Complete |
 
 **Coverage:**
 - v1 requirements: 24 total
@@ -106,4 +106,4 @@
 
 ---
 *Requirements defined: 2026-02-20*
-*Last updated: 2026-02-23 (Phase 2 requirements marked Complete)*
+*Last updated: 2026-02-24 (Phase 3 requirements marked Complete)*

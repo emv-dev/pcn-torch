@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation** - Package scaffold, PCNLayer, types, activations, and configuration (2026-02-20)
 - [x] **Phase 2: Core Model** - PredictiveCodingNetwork hierarchy, error computation, and readout (2026-02-23)
-- [ ] **Phase 3: Training + Energy + Tests** - Inference/learning loops, energy tracking, and correctness tests
+- [x] **Phase 3: Training + Energy + Tests** - Inference/learning loops, energy tracking, and correctness tests (2026-02-24)
 - [ ] **Phase 4: Integration + Publishing** - CIFAR-10 example, PyPI publish, and README
 
 ## Phase Details
@@ -62,8 +62,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 03-01-PLAN.md -- Energy module, TrainConfig/TrainHistory/TrainCallback, RichCallback, train_pcn, test_pcn training loops
-- [ ] 03-02-PLAN.md -- Algorithmic correctness tests (TST-02, TST-03, TST-04), energy tests, and public API exports
+- [x] 03-01-PLAN.md -- Energy module, TrainConfig/TrainHistory/TrainCallback, RichCallback, train_pcn, test_pcn training loops (2026-02-24)
+- [x] 03-02-PLAN.md -- Algorithmic correctness tests (TST-02, TST-03, TST-04), energy tests, and public API exports (2026-02-24)
 
 ### Phase 4: Integration + Publishing
 **Goal**: Anyone can `pip install pcn-torch`, run the CIFAR-10 example, and see the library work
@@ -88,9 +88,9 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 |-------|----------------|--------|-----------|
 | 1. Foundation | 1/1 | Complete | 2026-02-20 |
 | 2. Core Model | 1/1 | Complete | 2026-02-23 |
-| 3. Training + Energy + Tests | 0/2 | Not started | - |
+| 3. Training + Energy + Tests | 2/2 | Complete | 2026-02-24 |
 | 4. Integration + Publishing | 0/1 | Not started | - |
 
 ---
 *Roadmap created: 2026-02-20*
-*Last updated: 2026-02-23 (Phase 2 complete)*
+*Last updated: 2026-02-24 (Phase 3 complete)*
