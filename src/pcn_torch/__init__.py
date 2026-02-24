@@ -3,6 +3,7 @@
 from pcn_torch._types import ActivationDeriv, ActivationFn, ActivationPair
 from pcn_torch.activations import get_activation
 from pcn_torch.layers import PCNLayer
+from pcn_torch.network import PCNErrors, PredictiveCodingNetwork
 
 try:
     from pcn_torch._version import __version__
@@ -14,6 +15,8 @@ __all__ = [
     "ActivationDeriv",
     "ActivationFn",
     "ActivationPair",
+    "PCNErrors",
     "PCNLayer",
+    "PredictiveCodingNetwork",
     "get_activation",
 ]
