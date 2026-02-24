@@ -16,10 +16,10 @@
 ### Core Model
 
 - [x] **MOD-01**: PCNLayer class (nn.Module) with weight matrix, activation function, and its derivative
-- [ ] **MOD-02**: PredictiveCodingNetwork class (nn.Module) managing the full layer hierarchy
-- [ ] **MOD-03**: Random latent initialization for each forward pass
-- [ ] **MOD-04**: Prediction error and gain-modulated error computation across all layers
-- [ ] **MOD-05**: Linear readout layer (no bias) mapping top latent to output prediction
+- [x] **MOD-02**: PredictiveCodingNetwork class (nn.Module) managing the full layer hierarchy
+- [x] **MOD-03**: Random latent initialization for each forward pass
+- [x] **MOD-04**: Prediction error and gain-modulated error computation across all layers
+- [x] **MOD-05**: Linear readout layer (no bias) mapping top latent to output prediction
 - [x] **MOD-06**: Configurable layer dimensions, activation functions, and hyperparameters
 
 ### Training
@@ -80,10 +80,10 @@
 | PKG-04 | Phase 4 | Pending |
 | PKG-05 | Phase 1 | Complete |
 | MOD-01 | Phase 1 | Complete |
-| MOD-02 | Phase 2 | Pending |
-| MOD-03 | Phase 2 | Pending |
-| MOD-04 | Phase 2 | Pending |
-| MOD-05 | Phase 2 | Pending |
+| MOD-02 | Phase 2 | Complete |
+| MOD-03 | Phase 2 | Complete |
+| MOD-04 | Phase 2 | Complete |
+| MOD-05 | Phase 2 | Complete |
 | MOD-06 | Phase 1 | Complete |
 | TRN-01 | Phase 3 | Pending |
 | TRN-02 | Phase 3 | Pending |
@@ -106,4 +106,4 @@
 
 ---
 *Requirements defined: 2026-02-20*
-*Last updated: 2026-02-20 (Phase 1 requirements marked Complete)*
+*Last updated: 2026-02-23 (Phase 2 requirements marked Complete)*
