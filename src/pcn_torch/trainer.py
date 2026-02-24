@@ -1,0 +1,566 @@
+"""Training loops, configuration, history, and callbacks for PCN.
+
+Implements Algorithm 3 from arXiv:2506.06332v1: two-phase training
+with inference (latent updates) and learning (weight updates), both
+running entirely under torch.no_grad() with no autograd graph.
+"""
+
+from __future__ import annotations
+
+import warnings
+from collections import deque
+from contextlib import nullcontext
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
+
+import torch
+import torch.nn.functional as F  # noqa: N812
+from torch import Tensor
+
+from pcn_torch.energy import compute_energy
+
+if TYPE_CHECKING:
+    from torch.utils.data import DataLoader
+
+    from pcn_torch.network import PredictiveCodingNetwork
+
+
+# ---------------------------------------------------------------------------
+# Callback base class
+# ---------------------------------------------------------------------------
+
+
+class TrainCallback:
+    """Base class for training callbacks. Override methods you need."""
+
+    def on_train_start(self, config: TrainConfig, history: TrainHistory) -> None:
+        pass
+
+    def on_epoch_start(self, epoch: int, num_epochs: int) -> None:
+        pass
+
+    def on_batch_start(self, batch: int, num_batches: int) -> None:
+        pass
+
+    def on_inference_step(self, step: int, energy: float) -> None:
+        pass
+
+    def on_learning_step(self, step: int, energy: float) -> None:
+        pass
+
+    def on_batch_end(self, batch: int, batch_energy: float) -> None:
+        pass
+
+    def on_epoch_end(self, epoch: int, history: TrainHistory) -> None:
+        pass
+
+    def on_train_end(self, history: TrainHistory) -> None:
+        pass
+
+
+# ---------------------------------------------------------------------------
+# Data classes
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class EnergyHistory:
+    """Energy tracking data at multiple granularities."""
+
+    per_batch: list[float] = field(default_factory=list)
+    per_epoch: list[float] = field(default_factory=list)
+
+
+@dataclass
+class TrainHistory:
+    """Training results and metrics.
+
+    Populated during training, returned by train_pcn().
+    Accessible mid-training via callback.
+    """
+
+    energy: EnergyHistory = field(default_factory=EnergyHistory)
+    train_loss: list[float] = field(default_factory=list)
+    train_accuracy: list[float] = field(default_factory=list)
+    test_loss: list[float] = field(default_factory=list)
+    test_accuracy: list[float] = field(default_factory=list)
+    config: TrainConfig | None = None
+
+
+@dataclass
+class TrainConfig:
+    """Configuration for PCN training.
+
+    Attributes:
+        task: Either 'classification' or 'regression'.
+        T_infer: Number of inference steps per batch.
+        T_learn: Number of learning steps per batch. Defaults to None,
+            meaning T_learn = batch_size (paper recommendation).
+        lr_infer: Learning rate for latent variable updates during inference.
+        lr_learn: Learning rate for weight updates during learning.
+        num_epochs: Number of training epochs.
+        early_stop_threshold: If set, stop inference early when energy
+            change falls below this threshold. None disables early stopping.
+        energy_window_size: Rolling window size K for per-step energy.
+        use_mixed_precision: Enable torch.amp.autocast during inference
+            on CUDA devices.
+        callback: Optional callback for progress/logging. Defaults to
+            RichCallback.
+    """
+
+    task: str = "classification"
+    T_infer: int = 50
+    T_learn: int | None = None
+    lr_infer: float = 0.05
+    lr_learn: float = 0.005
+    num_epochs: int = 4
+    early_stop_threshold: float | None = None
+    energy_window_size: int = 10
+    use_mixed_precision: bool = True
+    callback: TrainCallback | None = None
+
+    def __post_init__(self) -> None:
+        if self.task not in ("classification", "regression"):
+            msg = (
+                f"task must be 'classification' or 'regression', "
+                f"got '{self.task}'"
+            )
+            raise ValueError(msg)
+        if self.T_infer < 1:
+            msg = f"T_infer must be >= 1, got {self.T_infer}"
+            raise ValueError(msg)
+        if self.T_learn is not None and self.T_learn < 1:
+            msg = f"T_learn must be >= 1 or None, got {self.T_learn}"
+            raise ValueError(msg)
+
+
+# ---------------------------------------------------------------------------
+# RichCallback (with plain-text fallback)
+# ---------------------------------------------------------------------------
+
+try:
+    from rich.console import Console
+
+    _RICH_AVAILABLE = True
+except ImportError:  # pragma: no cover
+    _RICH_AVAILABLE = False
+
+
+class _PlainCallback(TrainCallback):
+    """Plain-text fallback when rich is not installed."""
+
+    def on_epoch_end(self, epoch: int, history: TrainHistory) -> None:
+        energy = history.energy.per_epoch[-1] if history.energy.per_epoch else 0.0
+        parts = [f"Epoch {epoch + 1}", f"energy={energy:.4f}"]
+        if history.train_accuracy:
+            parts.append(f"accuracy={history.train_accuracy[-1]:.4f}")
+        print(" | ".join(parts))  # noqa: T201
+
+    def on_train_end(self, history: TrainHistory) -> None:
+        print("Training complete.")  # noqa: T201
+        if history.energy.per_epoch:
+            print(f"  Final energy: {history.energy.per_epoch[-1]:.4f}")  # noqa: T201
+        if history.train_accuracy:
+            print(f"  Final accuracy: {history.train_accuracy[-1]:.4f}")  # noqa: T201
+
+
+class RichCallback(TrainCallback):
+    """Rich console progress display for PCN training.
+
+    Shows epoch summary with energy and accuracy metrics.
+    Falls back to plain-text output if rich is not installed.
+    """
+
+    def __init__(self) -> None:
+        self._fallback: _PlainCallback | None = None
+        if not _RICH_AVAILABLE:
+            self._fallback = _PlainCallback()
+            return
+        self._console = Console()
+
+    def on_train_start(self, config: TrainConfig, history: TrainHistory) -> None:
+        if self._fallback is not None:
+            self._fallback.on_train_start(config, history)
+            return
+        self._console.print(
+            f"[bold]PCN Training[/bold] | "
+            f"task={config.task} | "
+            f"T_infer={config.T_infer} | "
+            f"epochs={config.num_epochs}"
+        )
+
+    def on_epoch_start(self, epoch: int, num_epochs: int) -> None:
+        if self._fallback is not None:
+            self._fallback.on_epoch_start(epoch, num_epochs)
+
+    def on_batch_start(self, batch: int, num_batches: int) -> None:
+        if self._fallback is not None:
+            self._fallback.on_batch_start(batch, num_batches)
+
+    def on_epoch_end(self, epoch: int, history: TrainHistory) -> None:
+        if self._fallback is not None:
+            self._fallback.on_epoch_end(epoch, history)
+            return
+        energy = history.energy.per_epoch[-1] if history.energy.per_epoch else 0.0
+        parts = [f"  Epoch {epoch + 1}", f"energy={energy:.6f}"]
+        if history.train_accuracy:
+            parts.append(f"accuracy={history.train_accuracy[-1]:.4f}")
+        self._console.print(" | ".join(parts))
+
+    def on_train_end(self, history: TrainHistory) -> None:
+        if self._fallback is not None:
+            self._fallback.on_train_end(history)
+            return
+        self._console.print("[bold green]Training complete.[/bold green]")
+        if history.energy.per_epoch:
+            self._console.print(
+                f"  Final energy: {history.energy.per_epoch[-1]:.6f}"
+            )
+        if history.train_accuracy:
+            self._console.print(
+                f"  Final accuracy: {history.train_accuracy[-1]:.4f}"
+            )
+
+
+# ---------------------------------------------------------------------------
+# Runtime autograd guard
+# ---------------------------------------------------------------------------
+
+
+def _check_no_autograd(model: PredictiveCodingNetwork) -> None:
+    """Check that no autograd graph is being built.
+
+    Called once on the first inference step as a runtime guard.
+    """
+    if torch.is_grad_enabled():
+        warnings.warn(
+            "Gradient computation is enabled during PCN training. "
+            "This will cause memory issues. Ensure training runs inside "
+            "torch.no_grad().",
+            RuntimeWarning,
+            stacklevel=3,
+        )
+    for lat in model.latents:
+        if lat.grad_fn is not None:
+            warnings.warn(
+                "Latent variable has an autograd graph attached "
+                "(grad_fn is not None). "
+                "PCN training should not build autograd graphs.",
+                RuntimeWarning,
+                stacklevel=3,
+            )
+            break
+
+
+# ---------------------------------------------------------------------------
+# Training loop
+# ---------------------------------------------------------------------------
+
+
+def train_pcn(
+    model: PredictiveCodingNetwork,
+    dataloader: DataLoader[tuple[Tensor, Tensor]],
+    config: TrainConfig,
+) -> TrainHistory:
+    """Train a PredictiveCodingNetwork using local Hebbian-like update rules.
+
+    Implements Algorithm 3 from arXiv:2506.06332v1. All operations run
+    under torch.no_grad(). No autograd graph is built.
+
+    The training loop has two phases per batch:
+    1. **Inference:** Update latent variables for T_infer steps to minimize
+       prediction errors, keeping weights frozen.
+    2. **Learning:** Update weights for T_learn steps using batch-averaged
+       local gradients, keeping latents frozen.
+
+    Args:
+        model: The PredictiveCodingNetwork to train.
+        dataloader: PyTorch DataLoader providing (x_batch, y_batch) tuples.
+        config: Training configuration (hyperparameters, callbacks, etc.).
+
+    Returns:
+        TrainHistory with losses, energies, and accuracies per epoch.
+    """
+    device = next(model.parameters()).device
+    history = TrainHistory(config=config)
+    callback = config.callback if config.callback is not None else RichCallback()
+    first_batch = True
+
+    callback.on_train_start(config, history)
+
+    for epoch in range(config.num_epochs):
+        callback.on_epoch_start(epoch, config.num_epochs)
+        epoch_energy = 0.0
+        epoch_correct = 0
+        epoch_total = 0
+
+        for batch_idx, (x_batch, y_batch) in enumerate(dataloader):
+            B = x_batch.shape[0]
+            x_batch = x_batch.view(B, -1).to(device)
+
+            # Encode targets
+            if config.task == "classification":
+                if y_batch.dim() == 1 or (
+                    y_batch.dim() == 2 and y_batch.dtype in (torch.long, torch.int)
+                ):
+                    num_classes: int = model._readout.weight.shape[0]
+                    y_batch = (
+                        F.one_hot(y_batch.long(), num_classes=num_classes)
+                        .float()
+                        .to(device)
+                    )
+                else:
+                    # Already 2D float -- assume pre-encoded one-hot
+                    y_batch = y_batch.to(device)
+            else:
+                y_batch = y_batch.to(device)
+
+            # Initialize latents for this batch
+            model.init_latents(B)
+
+            # Build weight reference list for in-place updates
+            # nn.ModuleList iteration returns nn.Module, not PCNLayer
+            weights: list[Tensor] = [
+                layer.weight for layer in model.layers  # type: ignore[union-attr]
+            ] + [model._readout.weight]  # type: ignore[assignment]
+
+            T_learn = config.T_learn if config.T_learn is not None else B
+
+            callback.on_batch_start(batch_idx, len(dataloader))
+
+            # === INFERENCE PHASE ===
+            amp_ctx = (
+                torch.amp.autocast(device_type="cuda")
+                if config.use_mixed_precision and device.type == "cuda"
+                else nullcontext()
+            )
+
+            with torch.no_grad(), amp_ctx:
+                energy_window: deque[float] = deque(
+                    maxlen=config.energy_window_size
+                )
+
+                for t in range(config.T_infer):
+                    # Runtime guard on first iteration only
+                    if first_batch and t == 0:
+                        _check_no_autograd(model)
+                        first_batch = False
+
+                    # Compute all errors from consistent snapshot (Pitfall 1)
+                    errors = model.compute_errors(x_batch, y_batch)
+
+                    # Compute energy for this step
+                    step_energy = compute_energy(errors)
+                    energy_window.append(step_energy)
+                    callback.on_inference_step(t, step_energy)
+
+                    # Build extended errors: [E^(0), ..., E^(L-1), E^(L)]
+                    extended_errors: list[Tensor] = list(errors.errors)
+                    if errors.top_error is not None:
+                        extended_errors.append(errors.top_error)
+                    else:
+                        # Unsupervised: E^(L) = 0
+                        extended_errors.append(
+                            torch.zeros_like(model.latents[-1])
+                        )
+
+                    # Update latents (synchronous: all errors computed first)
+                    for idx in range(len(model.latents)):
+                        # Paper: G_X^(l+1) = E^(l+1) - H^(l) @ W^(l)
+                        grad_x = extended_errors[idx + 1] - (
+                            errors.gm_errors[idx] @ weights[idx]
+                        )
+                        model.latents[idx] -= config.lr_infer * grad_x
+
+                    # Early stopping check
+                    if (
+                        config.early_stop_threshold is not None
+                        and len(energy_window) >= 2
+                        and abs(energy_window[-1] - energy_window[-2])
+                        < config.early_stop_threshold
+                    ):
+                        break
+
+            # === LEARNING PHASE (no autocast -- Pitfall 5) ===
+            states = [x_batch, *model.latents]
+
+            with torch.no_grad():
+                for t in range(T_learn):
+                    # Recompute errors (weights changed each step!)
+                    errors = model.compute_errors(x_batch, y_batch)
+
+                    step_energy = compute_energy(errors)
+                    callback.on_learning_step(t, step_energy)
+
+                    # Weight gradients with batch averaging (Pitfall 2)
+                    for idx in range(len(model.layers)):
+                        # Paper: G_W^(l) = -(1/B) * H^(l).T @ X^(l+1)
+                        grad_W = (
+                            -(errors.gm_errors[idx].T @ states[idx + 1]) / B
+                        )
+                        weights[idx].data -= config.lr_learn * grad_W
+
+                    # Readout weight update
+                    if errors.supervised_error is not None:
+                        # Paper: G_W_out = (1/B) * E_sup.T @ X^(L)
+                        grad_W_out = (
+                            errors.supervised_error.T @ model.latents[-1]
+                        ) / B
+                        weights[-1].data -= config.lr_learn * grad_W_out
+
+            # Record batch energy (after learning)
+            batch_energy = compute_energy(
+                model.compute_errors(x_batch, y_batch)
+            )
+            history.energy.per_batch.append(batch_energy)
+            epoch_energy += batch_energy * B
+
+            # Track accuracy for classification
+            if config.task == "classification":
+                y_hat = model.predict()
+                predicted = y_hat.argmax(dim=1)
+                targets = (
+                    y_batch.argmax(dim=1) if y_batch.dim() > 1 else y_batch
+                )
+                epoch_correct += int((predicted == targets).sum().item())
+            epoch_total += B
+
+            callback.on_batch_end(batch_idx, batch_energy)
+
+        # Epoch summary
+        epoch_mean_energy = (
+            epoch_energy / epoch_total if epoch_total > 0 else 0.0
+        )
+        history.energy.per_epoch.append(epoch_mean_energy)
+        history.train_loss.append(epoch_mean_energy)
+        if config.task == "classification" and epoch_total > 0:
+            history.train_accuracy.append(epoch_correct / epoch_total)
+
+        callback.on_epoch_end(epoch, history)
+
+    callback.on_train_end(history)
+    return history
+
+
+# ---------------------------------------------------------------------------
+# Test / evaluation loop
+# ---------------------------------------------------------------------------
+
+
+def test_pcn(
+    model: PredictiveCodingNetwork,
+    dataloader: DataLoader[tuple[Tensor, Tensor]],
+    config: TrainConfig,
+) -> dict[str, float]:
+    """Evaluate a trained PCN on a test set.
+
+    Runs the inference loop only (no weight updates). Follows the paper's
+    testing procedure (Section 5.3): initialize latents, run inference,
+    read prediction from the readout layer.
+
+    Args:
+        model: The trained PredictiveCodingNetwork to evaluate.
+        dataloader: PyTorch DataLoader providing (x_batch, y_batch) tuples.
+        config: Training configuration (uses T_infer, lr_infer, task).
+
+    Returns:
+        Dictionary with 'accuracy' and 'energy' keys.
+    """
+    model.train(mode=False)
+    device = next(model.parameters()).device
+    correct = 0
+    total = 0
+    total_energy = 0.0
+
+    amp_ctx = (
+        torch.amp.autocast(device_type="cuda")
+        if config.use_mixed_precision and device.type == "cuda"
+        else nullcontext()
+    )
+
+    with torch.no_grad():
+        for x_batch, y_batch in dataloader:
+            B = x_batch.shape[0]
+            x_batch = x_batch.view(B, -1).to(device)
+
+            # Encode targets (same as train_pcn)
+            if config.task == "classification":
+                if y_batch.dim() == 1 or (
+                    y_batch.dim() == 2
+                    and y_batch.dtype in (torch.long, torch.int)
+                ):
+                    num_classes: int = model._readout.weight.shape[0]
+                    y_batch = (
+                        F.one_hot(y_batch.long(), num_classes=num_classes)
+                        .float()
+                        .to(device)
+                    )
+                else:
+                    y_batch = y_batch.to(device)
+            else:
+                y_batch = y_batch.to(device)
+
+            # Initialize latents for this batch
+            model.init_latents(B)
+
+            # Build weight references for latent gradient computation
+            # nn.ModuleList iteration returns nn.Module, not PCNLayer
+            weights: list[Tensor] = [
+                layer.weight for layer in model.layers  # type: ignore[union-attr]
+            ] + [model._readout.weight]  # type: ignore[assignment]
+
+            # Inference-only loop (same as training inference phase)
+            with amp_ctx:
+                energy_window: deque[float] = deque(
+                    maxlen=config.energy_window_size
+                )
+
+                for _t in range(config.T_infer):
+                    errors = model.compute_errors(x_batch, y_batch)
+                    step_energy = compute_energy(errors)
+                    energy_window.append(step_energy)
+
+                    # Build extended errors
+                    extended_errors: list[Tensor] = list(errors.errors)
+                    if errors.top_error is not None:
+                        extended_errors.append(errors.top_error)
+                    else:
+                        extended_errors.append(
+                            torch.zeros_like(model.latents[-1])
+                        )
+
+                    # Update latents
+                    for idx in range(len(model.latents)):
+                        grad_x = extended_errors[idx + 1] - (
+                            errors.gm_errors[idx] @ weights[idx]
+                        )
+                        model.latents[idx] -= config.lr_infer * grad_x
+
+                    # Early stopping
+                    if (
+                        config.early_stop_threshold is not None
+                        and len(energy_window) >= 2
+                        and abs(energy_window[-1] - energy_window[-2])
+                        < config.early_stop_threshold
+                    ):
+                        break
+
+            # Compute final energy after inference
+            final_errors = model.compute_errors(x_batch, y_batch)
+            batch_energy = compute_energy(final_errors)
+            total_energy += batch_energy * B
+
+            # Compute predictions
+            if config.task == "classification":
+                y_hat = model.predict()
+                predicted = y_hat.argmax(dim=1)
+                targets = (
+                    y_batch.argmax(dim=1) if y_batch.dim() > 1 else y_batch
+                )
+                correct += int((predicted == targets).sum().item())
+            total += B
+
+    accuracy = correct / total if config.task == "classification" and total > 0 else 0.0
+    energy = total_energy / total if total > 0 else 0.0
+
+    return {"accuracy": accuracy, "energy": energy}
