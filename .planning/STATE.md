@@ -5,34 +5,35 @@
 See: .planning/PROJECT.md (updated 2026-02-20)
 
 **Core value:** A clean, PyTorch-native PCN implementation that lets anyone empirically explore predictive coding on their own problems with minimal friction.
-**Current focus:** Phase 1: Foundation
+**Current focus:** Phase 3: Training + Energy + Tests
 
 ## Current Position
 
-Phase: 1 of 4 (Foundation)
+Phase: 2 of 4 (Core Model)
 Plan: 1 of 1 in current phase
 Status: Phase complete
-Last activity: 2026-02-20 -- Completed quick-002 (add post-phase GitHub merge workflow)
+Last activity: 2026-02-23 -- Completed 02-01-PLAN.md (PredictiveCodingNetwork, PCNErrors, tests)
 
-Progress: [##........] 20% (1/5 plans)
+Progress: [####......] 40% (2/5 plans)
 Quick tasks: 2 completed (quick-001, quick-002)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1
-- Average duration: 12 min
-- Total execution time: 0.2 hours
+- Total plans completed: 2
+- Average duration: 12.5 min
+- Total execution time: 0.4 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1. Foundation | 1/1 | 12 min | 12 min |
+| 2. Core Model | 1/1 | 13 min | 13 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (12 min)
-- Trend: First plan completed
+- Last 5 plans: 01-01 (12 min), 02-01 (13 min)
+- Trend: Consistent velocity
 
 *Updated after each plan completion*
 
@@ -50,6 +51,10 @@ Recent decisions affecting current work:
 - [01-01]: Weight shape (out_features, in_features) matches nn.Linear convention
 - [01-01]: Xavier uniform init with gain=1.0 (paper default)
 - [01-01]: dependency-groups (PEP 735) for dev deps instead of optional-dependencies
+- [02-01]: Variable name `idx` instead of `l` to avoid ruff E741 ambiguous variable name
+- [02-01]: Explicit Tensor type annotation on predict() return to satisfy mypy no-any-return
+- [02-01]: type: ignore[assignment] for nn.ModuleList iteration (mypy nn.Module return type)
+- [02-01]: PCNErrors as NamedTuple (not dataclass) per RESEARCH.md recommendation
 
 ### Pending Todos
 
@@ -68,6 +73,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-20T19:19Z
-Stopped at: Completed 01-01-PLAN.md (foundation scaffold)
+Last session: 2026-02-24T00:01Z
+Stopped at: Completed 02-01-PLAN.md (PredictiveCodingNetwork, PCNErrors, tests)
 Resume file: None
