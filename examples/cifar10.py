@@ -13,6 +13,7 @@ Requirements (for this example only):
 
 import time
 
+import torch
 import torchvision
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
@@ -99,9 +100,9 @@ def main() -> None:
     print("Loading CIFAR-10...")  # noqa: T201
     train_loader, test_loader = load_cifar10()
 
-    msg = "Building model: dims=[3072, 1024, 1024, 512], output_dim=10"
-    print(msg)  # noqa: T201
-    model = build_model()
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Building model on {device}: dims=[3072, 1024, 1024, 512], output_dim=10")  # noqa: T201
+    model = build_model().to(device)
 
     config = TrainConfig(
         task="classification",
