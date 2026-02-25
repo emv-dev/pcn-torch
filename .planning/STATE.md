@@ -10,19 +10,19 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 ## Current Position
 
 Phase: 4 of 4 (Integration + Publishing)
-Plan: 3 of 4 in current phase (04-01 done, 04-03 done, 04-02 pending, 04-04 pending)
+Plan: 3 of 4 in current phase (04-01 done, 04-02 done, 04-03 done, 04-04 pending)
 Status: In progress
-Last activity: 2026-02-25 -- Completed 04-03-PLAN.md (README user-facing documentation)
+Last activity: 2026-02-25 -- Completed 04-02-PLAN.md (CIFAR-10 example script)
 
-Progress: [######..] 75% (6/8 plans)
+Progress: [#######.] 87% (7/8 plans)
 Quick tasks: 2 completed (quick-001, quick-002)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 6
-- Average duration: 10.5 min
-- Total execution time: 1.05 hours
+- Total plans completed: 7
+- Average duration: 10.0 min
+- Total execution time: 1.18 hours
 
 **By Phase:**
 
@@ -31,10 +31,10 @@ Quick tasks: 2 completed (quick-001, quick-002)
 | 1. Foundation | 1/1 | 12 min | 12 min |
 | 2. Core Model | 1/1 | 13 min | 13 min |
 | 3. Training + Energy + Tests | 2/2 | 26 min | 13 min |
-| 4. Integration + Publishing | 2/4 | 10 min | 5 min |
+| 4. Integration + Publishing | 3/4 | 18 min | 6 min |
 
 **Recent Trend:**
-- Last 5 plans: 02-01 (13 min), 03-01 (16 min), 03-02 (10 min), 04-01 (6 min), 04-03 (4 min)
+- Last 5 plans: 03-01 (16 min), 03-02 (10 min), 04-01 (6 min), 04-03 (4 min), 04-02 (8 min)
 - Trend: Docs/config plans faster than implementation plans
 
 *Updated after each plan completion*
@@ -67,6 +67,8 @@ Recent decisions affecting current work:
 - [04-01]: torchvision in dev group only (needed for examples/cifar10.py, not library consumers)
 - [04-03]: Status badge updated from pre-release to stable
 - [04-03]: Planning docs links removed from user-facing README entirely
+- [04-02]: Fixed config constants (no argparse) for example scripts
+- [04-02]: noqa: T201 on print statements in examples (defensive, T201 not in ruff select)
 
 ### Pending Todos
 
@@ -85,6 +87,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-25T19:14Z
-Stopped at: Completed 04-03-PLAN.md (README user-facing documentation)
+Last session: 2026-02-25T19:16Z
+Stopped at: Completed 04-02-PLAN.md (CIFAR-10 example script)
 Resume file: None
