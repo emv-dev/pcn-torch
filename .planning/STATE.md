@@ -9,20 +9,20 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 
 ## Current Position
 
-Phase: 3 of 4 (Training + Energy + Tests)
-Plan: 2 of 2 in current phase
-Status: Phase complete
-Last activity: 2026-02-24 -- Completed 03-02-PLAN.md (Energy and training correctness tests)
+Phase: 4 of 4 (Integration + Publishing)
+Plan: 1 of 4 in current phase
+Status: In progress
+Last activity: 2026-02-25 -- Completed 04-01-PLAN.md (PyPI metadata and peer dependency configuration)
 
-Progress: [########..] 80% (4/5 plans)
+Progress: [#########.] 90% (5/6 plans)
 Quick tasks: 2 completed (quick-001, quick-002)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 4
-- Average duration: 12.8 min
-- Total execution time: 0.85 hours
+- Total plans completed: 5
+- Average duration: 11.4 min
+- Total execution time: 0.95 hours
 
 **By Phase:**
 
@@ -31,10 +31,11 @@ Quick tasks: 2 completed (quick-001, quick-002)
 | 1. Foundation | 1/1 | 12 min | 12 min |
 | 2. Core Model | 1/1 | 13 min | 13 min |
 | 3. Training + Energy + Tests | 2/2 | 26 min | 13 min |
+| 4. Integration + Publishing | 1/4 | 6 min | 6 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (12 min), 02-01 (13 min), 03-01 (16 min), 03-02 (10 min)
-- Trend: Consistent velocity; test-writing plans faster than implementation plans
+- Last 5 plans: 02-01 (13 min), 03-01 (16 min), 03-02 (10 min), 04-01 (6 min)
+- Trend: Metadata/config plans faster than implementation plans
 
 *Updated after each plan completion*
 
@@ -62,6 +63,8 @@ Recent decisions affecting current work:
 - [03-02]: Import test_pcn as evaluate_pcn in tests to prevent pytest collection
 - [03-02]: PCNLayer in TYPE_CHECKING in test file (TCH001)
 - [03-02]: Silent TrainCallback() no-op for fast structural tests
+- [04-01]: torch as peer dependency (removed from install_requires, users install from pytorch.org)
+- [04-01]: torchvision in dev group only (needed for examples/cifar10.py, not library consumers)
 
 ### Pending Todos
 
@@ -80,6 +83,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-24T20:49Z
-Stopped at: Completed 03-02-PLAN.md (Energy and training correctness tests) -- Phase 3 complete
+Last session: 2026-02-25T19:13Z
+Stopped at: Completed 04-01-PLAN.md (PyPI metadata and peer dependency configuration)
 Resume file: None
