@@ -111,7 +111,7 @@ def main() -> None:
         lr_learn=LR_LEARN,
         num_epochs=NUM_EPOCHS,
         early_stop_threshold=1e-4,
-        callback=RichCallback(),
+        callback=RichCallback(device=str(device)),
     )
 
     # Train

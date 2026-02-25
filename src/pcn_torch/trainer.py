@@ -85,6 +85,8 @@ class TrainHistory:
     test_loss: list[float] = field(default_factory=list)
     test_accuracy: list[float] = field(default_factory=list)
     config: TrainConfig | None = None
+    # Running accuracy within current epoch (updated per batch for callbacks)
+    _running_accuracy: float = field(default=0.0, repr=False)
 
 
 @dataclass
@@ -140,6 +142,15 @@ class TrainConfig:
 
 try:
     from rich.console import Console
+    from rich.progress import (
+        BarColumn,
+        MofNCompleteColumn,
+        Progress,
+        SpinnerColumn,
+        TextColumn,
+        TimeElapsedColumn,
+        TimeRemainingColumn,
+    )
 
     _RICH_AVAILABLE = True
 except ImportError:  # pragma: no cover
@@ -167,50 +178,110 @@ class _PlainCallback(TrainCallback):
 class RichCallback(TrainCallback):
     """Rich console progress display for PCN training.
 
-    Shows epoch summary with energy and accuracy metrics.
-    Falls back to plain-text output if rich is not installed.
+    Shows a live progress bar per epoch with batch speed, energy, accuracy,
+    and estimated time remaining. Falls back to plain text if rich is not
+    installed.
+
+    Args:
+        device: Optional device label shown in the training header
+            (e.g. ``"cuda"`` or ``"cpu"``). If ``None``, the header omits
+            device information.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, device: str | None = None) -> None:
         self._fallback: _PlainCallback | None = None
+        self._device_label = device
         if not _RICH_AVAILABLE:
             self._fallback = _PlainCallback()
             return
         self._console = Console()
+        self._progress: Progress | None = None
+        self._epoch_task_id: object = None
+        self._num_epochs: int = 0
+        self._history: TrainHistory | None = None
+        self._task_type: str = "classification"
+        self._metrics_col = TextColumn("")
 
     def on_train_start(self, config: TrainConfig, history: TrainHistory) -> None:
         if self._fallback is not None:
             self._fallback.on_train_start(config, history)
             return
-        self._console.print(
-            f"[bold]PCN Training[/bold] | "
-            f"task={config.task} | "
-            f"T_infer={config.T_infer} | "
-            f"epochs={config.num_epochs}"
-        )
+        self._history = history
+        self._task_type = config.task
+        self._num_epochs = config.num_epochs
+        parts = ["[bold]PCN Training[/bold]"]
+        if self._device_label:
+            parts.append(f"device=[cyan]{self._device_label}[/cyan]")
+        parts.append(f"task={config.task}")
+        parts.append(f"T_infer={config.T_infer}")
+        parts.append(f"epochs={config.num_epochs}")
+        self._console.print(" | ".join(parts))
 
     def on_epoch_start(self, epoch: int, num_epochs: int) -> None:
         if self._fallback is not None:
             self._fallback.on_epoch_start(epoch, num_epochs)
+            return
+        self._num_epochs = num_epochs
+        self._metrics_col = TextColumn("")
+        self._progress = Progress(
+            SpinnerColumn(),
+            TextColumn(f"Epoch {epoch + 1}/{num_epochs}"),
+            BarColumn(bar_width=30),
+            MofNCompleteColumn(),
+            TimeElapsedColumn(),
+            TextColumn("<"),
+            TimeRemainingColumn(),
+            self._metrics_col,
+            console=self._console,
+            transient=True,
+        )
+        self._progress.start()
+        self._epoch_task_id = self._progress.add_task("epoch", total=None)
 
     def on_batch_start(self, batch: int, num_batches: int) -> None:
         if self._fallback is not None:
             self._fallback.on_batch_start(batch, num_batches)
+            return
+        if self._progress is not None and self._epoch_task_id is not None:
+            self._progress.update(self._epoch_task_id, total=num_batches)
+
+    def on_batch_end(self, batch: int, batch_energy: float) -> None:
+        if self._fallback is not None:
+            return
+        if self._progress is not None and self._epoch_task_id is not None:
+            # Build live metrics string
+            parts = [f"energy={batch_energy:.4f}"]
+            if (
+                self._task_type == "classification"
+                and self._history is not None
+                and self._history._running_accuracy > 0
+            ):
+                parts.append(f"acc={self._history._running_accuracy:.1%}")
+            self._metrics_col.text_format = (
+                "[dim]|[/dim] " + " [dim]|[/dim] ".join(parts)
+            )
+            self._progress.advance(self._epoch_task_id)
 
     def on_epoch_end(self, epoch: int, history: TrainHistory) -> None:
         if self._fallback is not None:
             self._fallback.on_epoch_end(epoch, history)
             return
+        if self._progress is not None:
+            self._progress.stop()
+            self._progress = None
         energy = history.energy.per_epoch[-1] if history.energy.per_epoch else 0.0
-        parts = [f"  Epoch {epoch + 1}", f"energy={energy:.6f}"]
+        parts = [f"  Epoch {epoch + 1}/{self._num_epochs}", f"energy={energy:.6f}"]
         if history.train_accuracy:
-            parts.append(f"accuracy={history.train_accuracy[-1]:.4f}")
+            parts.append(f"acc={history.train_accuracy[-1]:.1%}")
         self._console.print(" | ".join(parts))
 
     def on_train_end(self, history: TrainHistory) -> None:
         if self._fallback is not None:
             self._fallback.on_train_end(history)
             return
+        if self._progress is not None:
+            self._progress.stop()
+            self._progress = None
         self._console.print("[bold green]Training complete.[/bold green]")
         if history.energy.per_epoch:
             self._console.print(
@@ -415,7 +486,7 @@ def train_pcn(
             history.energy.per_batch.append(batch_energy)
             epoch_energy += batch_energy * B
 
-            # Track accuracy for classification
+            # Track accuracy for classification (before callback for live display)
             if config.task == "classification":
                 y_hat = model.predict()
                 predicted = y_hat.argmax(dim=1)
@@ -424,6 +495,8 @@ def train_pcn(
                 )
                 epoch_correct += int((predicted == targets).sum().item())
             epoch_total += B
+            if config.task == "classification" and epoch_total > 0:
+                history._running_accuracy = epoch_correct / epoch_total
 
             callback.on_batch_end(batch_idx, batch_energy)
 
