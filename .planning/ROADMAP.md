@@ -73,11 +73,14 @@ Plans:
   1. `pip install pcn-torch` from PyPI installs the package (with torch as a peer dependency)
   2. Running `python examples/cifar10.py` trains a PCN on CIFAR-10 and achieves reasonable accuracy (demonstrating the network works)
   3. The README contains installation instructions (including "install PyTorch first"), a quickstart code snippet, and an API overview
-  4. The package version is 0.1.0, derived from git tags via hatch-vcs
-**Plans**: TBD
+  4. The package version is v1.0.0, derived from git tags via hatch-vcs
+**Plans**: 4 plans
 
 Plans:
-- [ ] 04-01: CIFAR-10 example, public API surface (__init__.py), README, and PyPI publish
+- [ ] 04-01-PLAN.md — pyproject.toml metadata update: remove torch from deps, add authors/classifiers/keywords/URLs, add torchvision dev dep
+- [ ] 04-02-PLAN.md — CIFAR-10 example script (examples/cifar10.py) with fixed config and RichCallback
+- [ ] 04-03-PLAN.md — README rewrite: predictive coding explainer, installation, quickstart, API overview, Results section
+- [ ] 04-04-PLAN.md — Build v1.0.0 (git tag, uv build), verify artifacts (twine check), publish to TestPyPI
 
 ## Progress
 
@@ -89,8 +92,8 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | 1. Foundation | 1/1 | Complete | 2026-02-20 |
 | 2. Core Model | 1/1 | Complete | 2026-02-23 |
 | 3. Training + Energy + Tests | 2/2 | Complete | 2026-02-24 |
-| 4. Integration + Publishing | 0/1 | Not started | - |
+| 4. Integration + Publishing | 0/4 | Not started | - |
 
 ---
 *Roadmap created: 2026-02-20*
-*Last updated: 2026-02-24 (Phase 3 complete)*
+*Last updated: 2026-02-25 (Phase 4 planned: 4 plans in 2 waves)*
