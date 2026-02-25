@@ -10,19 +10,19 @@ See: .planning/PROJECT.md (updated 2026-02-20)
 ## Current Position
 
 Phase: 4 of 4 (Integration + Publishing)
-Plan: 1 of 4 in current phase
+Plan: 3 of 4 in current phase (04-01 done, 04-03 done, 04-02 pending, 04-04 pending)
 Status: In progress
-Last activity: 2026-02-25 -- Completed 04-01-PLAN.md (PyPI metadata and peer dependency configuration)
+Last activity: 2026-02-25 -- Completed 04-03-PLAN.md (README user-facing documentation)
 
-Progress: [#########.] 90% (5/6 plans)
+Progress: [######..] 75% (6/8 plans)
 Quick tasks: 2 completed (quick-001, quick-002)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 5
-- Average duration: 11.4 min
-- Total execution time: 0.95 hours
+- Total plans completed: 6
+- Average duration: 10.5 min
+- Total execution time: 1.05 hours
 
 **By Phase:**
 
@@ -31,11 +31,11 @@ Quick tasks: 2 completed (quick-001, quick-002)
 | 1. Foundation | 1/1 | 12 min | 12 min |
 | 2. Core Model | 1/1 | 13 min | 13 min |
 | 3. Training + Energy + Tests | 2/2 | 26 min | 13 min |
-| 4. Integration + Publishing | 1/4 | 6 min | 6 min |
+| 4. Integration + Publishing | 2/4 | 10 min | 5 min |
 
 **Recent Trend:**
-- Last 5 plans: 02-01 (13 min), 03-01 (16 min), 03-02 (10 min), 04-01 (6 min)
-- Trend: Metadata/config plans faster than implementation plans
+- Last 5 plans: 02-01 (13 min), 03-01 (16 min), 03-02 (10 min), 04-01 (6 min), 04-03 (4 min)
+- Trend: Docs/config plans faster than implementation plans
 
 *Updated after each plan completion*
 
@@ -65,6 +65,8 @@ Recent decisions affecting current work:
 - [03-02]: Silent TrainCallback() no-op for fast structural tests
 - [04-01]: torch as peer dependency (removed from install_requires, users install from pytorch.org)
 - [04-01]: torchvision in dev group only (needed for examples/cifar10.py, not library consumers)
+- [04-03]: Status badge updated from pre-release to stable
+- [04-03]: Planning docs links removed from user-facing README entirely
 
 ### Pending Todos
 
@@ -83,6 +85,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-25T19:13Z
-Stopped at: Completed 04-01-PLAN.md (PyPI metadata and peer dependency configuration)
+Last session: 2026-02-25T19:14Z
+Stopped at: Completed 04-03-PLAN.md (README user-facing documentation)
 Resume file: None
