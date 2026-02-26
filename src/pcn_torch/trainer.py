@@ -54,6 +54,9 @@ class TrainCallback:
     def on_epoch_end(self, epoch: int, history: TrainHistory) -> None:
         pass
 
+    def on_lr_reduced(self, old_lr: float, new_lr: float) -> None:
+        pass
+
     def on_train_end(self, history: TrainHistory) -> None:
         pass
 
@@ -84,6 +87,7 @@ class TrainHistory:
     train_accuracy: list[float] = field(default_factory=list)
     test_loss: list[float] = field(default_factory=list)
     test_accuracy: list[float] = field(default_factory=list)
+    lr_learn_per_epoch: list[float] = field(default_factory=list)
     config: TrainConfig | None = None
     # Running accuracy within current epoch (updated per batch for callbacks)
     _running_accuracy: float = field(default=0.0, repr=False)
@@ -112,6 +116,13 @@ class TrainConfig:
         energy_window_size: Rolling window size K for per-step energy.
         use_mixed_precision: Enable torch.amp.autocast during inference
             on CUDA devices.
+        lr_schedule: LR schedule for lr_learn. ``"reduce_on_plateau"``
+            reduces lr_learn when epoch energy stops improving. ``None``
+            disables scheduling (constant lr_learn).
+        lr_decay_factor: Multiplicative factor applied to lr_learn on
+            each reduction (must be in (0, 1) exclusive).
+        lr_patience: Number of epochs with no improvement before
+            reducing lr_learn (must be >= 1).
         callback: Optional callback for progress/logging. Defaults to
             RichCallback.
     """
@@ -126,6 +137,9 @@ class TrainConfig:
     early_stop_threshold: float | None = None
     energy_window_size: int = 10
     use_mixed_precision: bool = True
+    lr_schedule: str | None = "reduce_on_plateau"
+    lr_decay_factor: float = 0.5
+    lr_patience: int = 1
     callback: TrainCallback | None = None
 
     def __post_init__(self) -> None:
@@ -140,6 +154,21 @@ class TrainConfig:
             raise ValueError(msg)
         if self.T_learn is not None and self.T_learn < 1:
             msg = f"T_learn must be >= 1 or None, got {self.T_learn}"
+            raise ValueError(msg)
+        if self.lr_schedule is not None and self.lr_schedule != "reduce_on_plateau":
+            msg = (
+                "lr_schedule must be None or 'reduce_on_plateau', "
+                f"got '{self.lr_schedule}'"
+            )
+            raise ValueError(msg)
+        if self.lr_decay_factor <= 0.0 or self.lr_decay_factor >= 1.0:
+            msg = (
+                "lr_decay_factor must be in (0.0, 1.0) exclusive, "
+                f"got {self.lr_decay_factor}"
+            )
+            raise ValueError(msg)
+        if self.lr_patience < 1:
+            msg = f"lr_patience must be >= 1, got {self.lr_patience}"
             raise ValueError(msg)
 
     @property
@@ -171,6 +200,9 @@ except ImportError:  # pragma: no cover
 
 class _PlainCallback(TrainCallback):
     """Plain-text fallback when rich is not installed."""
+
+    def on_lr_reduced(self, old_lr: float, new_lr: float) -> None:
+        print(f"LR reduced: {old_lr:.6f} -> {new_lr:.6f}")  # noqa: T201
 
     def on_epoch_end(self, epoch: int, history: TrainHistory) -> None:
         energy = history.energy.per_epoch[-1] if history.energy.per_epoch else 0.0
@@ -274,6 +306,14 @@ class RichCallback(TrainCallback):
             )
             self._progress.advance(self._epoch_task_id)  # type: ignore[arg-type]
 
+    def on_lr_reduced(self, old_lr: float, new_lr: float) -> None:
+        if self._fallback is not None:
+            self._fallback.on_lr_reduced(old_lr, new_lr)
+            return
+        self._console.print(
+            f"[yellow]  LR reduced: {old_lr:.6f} -> {new_lr:.6f}[/yellow]"
+        )
+
     def on_epoch_end(self, epoch: int, history: TrainHistory) -> None:
         if self._fallback is not None:
             self._fallback.on_epoch_end(epoch, history)
@@ -364,6 +404,11 @@ def train_pcn(
     history = TrainHistory(config=config)
     callback = config.callback if config.callback is not None else RichCallback()
     first_batch = True
+
+    # LR schedule state
+    current_lr_learn = config.lr_learn
+    best_energy = float("inf")
+    patience_counter = 0
 
     callback.on_train_start(config, history)
 
@@ -472,13 +517,13 @@ def train_pcn(
                     for idx in range(len(model.layers)):
                         # Paper: G_W^(l) = -(1/B) * H^(l).T @ X^(l+1)
                         grad_W = -(errors.gm_errors[idx].T @ states[idx + 1]) / B
-                        weights[idx].data -= config.lr_learn * grad_W
+                        weights[idx].data -= current_lr_learn * grad_W
 
                     # Readout weight update
                     if errors.supervised_error is not None:
                         # Paper: G_W_out = (1/B) * E_sup.T @ X^(L)
                         grad_W_out = (errors.supervised_error.T @ model.latents[-1]) / B
-                        weights[-1].data -= config.lr_learn * grad_W_out
+                        weights[-1].data -= current_lr_learn * grad_W_out
 
             # Record batch energy (after learning)
             batch_energy = compute_energy(model.compute_errors(x_batch, y_batch))
@@ -518,6 +563,22 @@ def train_pcn(
         history.train_loss.append(epoch_mean_energy)
         if config.task == "classification" and epoch_total > 0:
             history.train_accuracy.append(epoch_correct / epoch_total)
+
+        # Track LR for this epoch
+        history.lr_learn_per_epoch.append(current_lr_learn)
+
+        # LR schedule: reduce on plateau
+        if config.lr_schedule == "reduce_on_plateau":
+            if epoch_mean_energy < best_energy:
+                best_energy = epoch_mean_energy
+                patience_counter = 0
+            else:
+                patience_counter += 1
+                if patience_counter >= config.lr_patience:
+                    old_lr = current_lr_learn
+                    current_lr_learn *= config.lr_decay_factor
+                    patience_counter = 0
+                    callback.on_lr_reduced(old_lr, current_lr_learn)
 
         callback.on_epoch_end(epoch, history)
 
