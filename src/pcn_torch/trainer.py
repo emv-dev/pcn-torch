@@ -530,6 +530,19 @@ def train_pcn(
             history.energy.per_batch.append(batch_energy)
             epoch_energy += batch_energy * B
 
+            # Per-batch LR schedule: reduce immediately when energy spikes
+            if config.lr_schedule == "reduce_on_plateau":
+                if batch_energy < best_energy:
+                    best_energy = batch_energy
+                    patience_counter = 0
+                else:
+                    patience_counter += 1
+                    if patience_counter >= config.lr_patience:
+                        old_lr = current_lr_learn
+                        current_lr_learn *= config.lr_decay_factor
+                        patience_counter = 0
+                        callback.on_lr_reduced(old_lr, current_lr_learn)
+
             # Track accuracy for classification via free inference
             # (no supervised signal, same as test_pcn) to get honest accuracy
             if config.task == "classification":
@@ -566,19 +579,6 @@ def train_pcn(
 
         # Track LR for this epoch
         history.lr_learn_per_epoch.append(current_lr_learn)
-
-        # LR schedule: reduce on plateau
-        if config.lr_schedule == "reduce_on_plateau":
-            if epoch_mean_energy < best_energy:
-                best_energy = epoch_mean_energy
-                patience_counter = 0
-            else:
-                patience_counter += 1
-                if patience_counter >= config.lr_patience:
-                    old_lr = current_lr_learn
-                    current_lr_learn *= config.lr_decay_factor
-                    patience_counter = 0
-                    callback.on_lr_reduced(old_lr, current_lr_learn)
 
         callback.on_epoch_end(epoch, history)
 
