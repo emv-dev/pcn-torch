@@ -10,15 +10,18 @@ A clean, PyTorch-native implementation of Predictive Coding Networks (PCNs) from
 
 ## What are Predictive Coding Networks?
 
-Predictive coding is a theory of cortical function proposing that the brain is fundamentally a hierarchical prediction machine. Each level in the cortical hierarchy maintains a generative model of the level below, continuously sending top-down predictions and receiving bottom-up prediction errors. This idea, formalized in computational neuroscience by Rao and Ballard (1999) and later developed into a comprehensive framework by Friston (2005), has become one of the most influential theories in theoretical neuroscience. Predictive Coding Networks (PCNs) translate this theory into a concrete machine learning algorithm.
+Your brain is constantly guessing what happens next -- and learning from its mistakes. Predictive Coding Networks (PCNs) work the same way.
 
-The central quantity in a PCN is the **prediction error** at each layer. Given a hierarchy of latent representations `x^(0), x^(1), ..., x^(L)`, the network computes errors as `eps^(l) = x^(l) - f^(l)(W^(l) x^(l+1))`, where `f^(l)` is an activation function and `W^(l)` are the generative weights projecting from the layer above. The total energy of the network is `E = (1/2) sum_l ||eps^(l)||^2`. Training proceeds by minimizing this energy, which naturally decomposes into purely local computations.
+A PCN is a stack of layers where each layer guesses what the layer below should look like. It then compares that guess to what actually showed up. The difference is the **prediction error**. The total **energy** of the network is just the sum of all prediction errors across every layer -- and training means driving that energy down.
 
-PCN training operates on two timescales. In the **inference phase**, the input and (during training) the target are clamped, and the latent variables `x^(l)` are iteratively updated for `T` steps to reduce prediction errors throughout the hierarchy. Each latent update depends only on the errors immediately above and below it in the hierarchy -- no global signal needs to propagate end-to-end. In the subsequent **learning phase**, the weights `W^(l)` are updated using a local, Hebbian-like rule: each weight update is proportional to the outer product of the prediction error and the pre-synaptic activity at that layer.
+The clever part is that everything stays local. Training has two phases:
 
-This stands in contrast to backpropagation, where a global loss signal must propagate backward through the entire network via the chain rule, requiring storage of all intermediate activations and exact symmetric weight transport. PCNs require none of this. Each layer updates its own weights using only information available locally, making the algorithm biologically plausible and naturally suited to hardware architectures that support local learning rules. Furthermore, all operations in pcn-torch run under `torch.no_grad()` -- no autograd graph is ever constructed.
+- **Inference phase:** The network adjusts its internal guesses (not the weights) to reduce errors across all layers -- like tuning a radio dial until the static clears. Each layer only looks at its immediate neighbors. No signal needs to travel end-to-end.
+- **Learning phase:** Once the guesses have settled, each layer updates its own weights based on its local prediction errors only. Each layer learns from its own mistakes -- nothing else.
 
-For a clear derivation of the full algorithm, including the inference and learning update equations and their relationship to variational free energy minimization, see Stenlund (2025) [arXiv:2506.06332v1](https://arxiv.org/abs/2506.06332).
+Unlike backpropagation, which sends a single error signal backward through the entire network, PCNs let each layer learn independently using only local information. This is closer to how the brain actually works, and it means the algorithm never needs to store intermediate activations or build a computation graph. All operations in pcn-torch run under `torch.no_grad()` -- no autograd graph is ever constructed.
+
+For the full math and derivations, see Stenlund (2025) [arXiv:2506.06332v1](https://arxiv.org/abs/2506.06332).
 
 ## Installation
 
@@ -110,9 +113,9 @@ Note: A fully-connected MLP is architecturally limited on CIFAR-10 regardless of
 
 ## How It Works
 
-During the **inference phase**, each latent representation `x^(l)` is iteratively updated for `T_infer` steps to minimize local prediction errors. The update for each latent depends only on the errors at its own layer and the layer below -- there is no global error signal. The network converges to an internal state that best explains the clamped input (and target, during training) under the generative model.
+During the **inference phase**, for each training example the network runs `T_infer` steps of self-correction. Each layer looks at the errors above and below it and adjusts its internal state to reduce them. No signal needs to travel end-to-end -- every layer works in parallel using only its neighbors. The network settles into an internal state that best explains the input (and target, during training).
 
-During the **learning phase**, the weights `W^(l)` at each layer are updated using a local Hebbian-like rule. The gradient of the energy with respect to each weight matrix reduces to the outer product of the prediction error and the pre-synaptic activation, averaged over the batch. All operations run under `torch.no_grad()` -- no autograd graph is constructed.
+During the **learning phase**, the weights at each layer are updated based on local errors only. Each layer's weight update depends on its own prediction error and the activity feeding into it -- nothing else. All operations run under `torch.no_grad()`, so no autograd graph is ever built.
 
 ## References
 
