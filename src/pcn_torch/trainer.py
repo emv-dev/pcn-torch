@@ -116,13 +116,13 @@ class TrainConfig:
         energy_window_size: Rolling window size K for per-step energy.
         use_mixed_precision: Enable torch.amp.autocast during inference
             on CUDA devices.
-        lr_schedule: LR schedule for lr_learn. ``"reduce_on_plateau"``
-            reduces lr_learn when epoch energy stops improving. ``None``
-            disables scheduling (constant lr_learn).
-        lr_decay_factor: Multiplicative factor applied to lr_learn on
-            each reduction (must be in (0, 1) exclusive).
-        lr_patience: Number of epochs with no improvement before
-            reducing lr_learn (must be >= 1).
+        lr_learn_steps: Manual LR schedule as a list of (epoch, batch, lr)
+            tuples. At the start of the given epoch and batch, lr_learn
+            switches to ``lr``. Epoch and batch are 0-indexed.
+            Example: ``[(0, 0, 0.05), (0, 20, 0.005), (1, 0, 0.001)]``
+            starts at 0.05, drops to 0.005 at batch 20 of epoch 0, then
+            drops to 0.001 at the start of epoch 1.
+            If None, uses constant ``lr_learn`` throughout training.
         callback: Optional callback for progress/logging. Defaults to
             RichCallback.
     """
@@ -137,9 +137,7 @@ class TrainConfig:
     early_stop_threshold: float | None = None
     energy_window_size: int = 10
     use_mixed_precision: bool = True
-    lr_schedule: str | None = "reduce_on_plateau"
-    lr_decay_factor: float = 0.5
-    lr_patience: int = 1
+    lr_learn_steps: list[tuple[int, int, float]] | None = None
     callback: TrainCallback | None = None
 
     def __post_init__(self) -> None:
@@ -155,21 +153,20 @@ class TrainConfig:
         if self.T_learn is not None and self.T_learn < 1:
             msg = f"T_learn must be >= 1 or None, got {self.T_learn}"
             raise ValueError(msg)
-        if self.lr_schedule is not None and self.lr_schedule != "reduce_on_plateau":
-            msg = (
-                "lr_schedule must be None or 'reduce_on_plateau', "
-                f"got '{self.lr_schedule}'"
-            )
-            raise ValueError(msg)
-        if self.lr_decay_factor <= 0.0 or self.lr_decay_factor >= 1.0:
-            msg = (
-                "lr_decay_factor must be in (0.0, 1.0) exclusive, "
-                f"got {self.lr_decay_factor}"
-            )
-            raise ValueError(msg)
-        if self.lr_patience < 1:
-            msg = f"lr_patience must be >= 1, got {self.lr_patience}"
-            raise ValueError(msg)
+        if self.lr_learn_steps is not None:
+            if len(self.lr_learn_steps) == 0:
+                msg = "lr_learn_steps must be None or a non-empty list"
+                raise ValueError(msg)
+            for i, (ep, batch, lr) in enumerate(self.lr_learn_steps):
+                if ep < 0:
+                    msg = f"lr_learn_steps[{i}] epoch must be >= 0, got {ep}"
+                    raise ValueError(msg)
+                if batch < 0:
+                    msg = f"lr_learn_steps[{i}] batch must be >= 0, got {batch}"
+                    raise ValueError(msg)
+                if lr <= 0.0:
+                    msg = f"lr_learn_steps[{i}] lr must be > 0, got {lr}"
+                    raise ValueError(msg)
 
     @property
     def effective_T_infer_test(self) -> int:
@@ -405,10 +402,12 @@ def train_pcn(
     callback = config.callback if config.callback is not None else RichCallback()
     first_batch = True
 
-    # LR schedule state
+    # LR schedule: build lookup from (epoch, batch) -> lr
     current_lr_learn = config.lr_learn
-    best_energy = float("inf")
-    patience_counter = 0
+    lr_step_lookup: dict[tuple[int, int], float] = {}
+    if config.lr_learn_steps is not None:
+        for ep, batch, lr in config.lr_learn_steps:
+            lr_step_lookup[(ep, batch)] = lr
 
     callback.on_train_start(config, history)
 
@@ -502,6 +501,13 @@ def train_pcn(
                     ):
                         break
 
+            # Manual LR step schedule: check before learning phase
+            step_lr = lr_step_lookup.get((epoch, batch_idx))
+            if step_lr is not None and step_lr != current_lr_learn:
+                old_lr = current_lr_learn
+                current_lr_learn = step_lr
+                callback.on_lr_reduced(old_lr, current_lr_learn)
+
             # === LEARNING PHASE (no autocast -- Pitfall 5) ===
             states = [x_batch, *model.latents]
 
@@ -529,19 +535,6 @@ def train_pcn(
             batch_energy = compute_energy(model.compute_errors(x_batch, y_batch))
             history.energy.per_batch.append(batch_energy)
             epoch_energy += batch_energy * B
-
-            # Per-batch LR schedule: reduce immediately when energy spikes
-            if config.lr_schedule == "reduce_on_plateau":
-                if batch_energy < best_energy:
-                    best_energy = batch_energy
-                    patience_counter = 0
-                else:
-                    patience_counter += 1
-                    if patience_counter >= config.lr_patience:
-                        old_lr = current_lr_learn
-                        current_lr_learn *= config.lr_decay_factor
-                        patience_counter = 0
-                        callback.on_lr_reduced(old_lr, current_lr_learn)
 
             # Track accuracy for classification via free inference
             # (no supervised signal, same as test_pcn) to get honest accuracy

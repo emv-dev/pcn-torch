@@ -92,9 +92,7 @@ def test_config_defaults() -> None:
     assert config.lr_infer == 0.05
     assert config.lr_learn == 0.005
     assert config.num_epochs == 4
-    assert config.lr_schedule == "reduce_on_plateau"
-    assert config.lr_decay_factor == 0.5
-    assert config.lr_patience == 1
+    assert config.lr_learn_steps is None
 
 
 def test_config_invalid_task() -> None:
@@ -138,42 +136,41 @@ def test_config_effective_T_infer_test_explicit() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_config_lr_schedule_defaults() -> None:
-    """LR schedule defaults: reduce_on_plateau, factor=0.5, patience=1."""
+def test_config_lr_learn_steps_default_none() -> None:
+    """lr_learn_steps defaults to None (constant lr_learn)."""
     config = TrainConfig()
-    assert config.lr_schedule == "reduce_on_plateau"
-    assert config.lr_decay_factor == 0.5
-    assert config.lr_patience == 1
+    assert config.lr_learn_steps is None
 
 
-def test_config_lr_schedule_none_disables() -> None:
-    """lr_schedule=None is valid and disables scheduling."""
-    config = TrainConfig(lr_schedule=None)
-    assert config.lr_schedule is None
+def test_config_lr_learn_steps_valid() -> None:
+    """lr_learn_steps accepts valid (epoch, batch, lr) tuples."""
+    steps: list[tuple[int, int, float]] = [(0, 0, 0.05), (0, 20, 0.005)]
+    config = TrainConfig(lr_learn_steps=steps)
+    assert config.lr_learn_steps == steps
 
 
-def test_config_lr_schedule_invalid() -> None:
-    """ValueError for unrecognized lr_schedule string."""
-    with pytest.raises(ValueError, match="lr_schedule"):
-        TrainConfig(lr_schedule="cosine")
+def test_config_lr_learn_steps_empty_raises() -> None:
+    """ValueError for empty lr_learn_steps list."""
+    with pytest.raises(ValueError, match="lr_learn_steps"):
+        TrainConfig(lr_learn_steps=[])
 
 
-def test_config_lr_decay_factor_invalid_zero() -> None:
-    """ValueError for lr_decay_factor=0."""
-    with pytest.raises(ValueError, match="lr_decay_factor"):
-        TrainConfig(lr_decay_factor=0.0)
+def test_config_lr_learn_steps_negative_epoch_raises() -> None:
+    """ValueError for negative epoch in lr_learn_steps."""
+    with pytest.raises(ValueError, match="epoch must be >= 0"):
+        TrainConfig(lr_learn_steps=[(-1, 0, 0.01)])
 
 
-def test_config_lr_decay_factor_invalid_one() -> None:
-    """ValueError for lr_decay_factor=1.0."""
-    with pytest.raises(ValueError, match="lr_decay_factor"):
-        TrainConfig(lr_decay_factor=1.0)
+def test_config_lr_learn_steps_negative_batch_raises() -> None:
+    """ValueError for negative batch in lr_learn_steps."""
+    with pytest.raises(ValueError, match="batch must be >= 0"):
+        TrainConfig(lr_learn_steps=[(0, -1, 0.01)])
 
 
-def test_config_lr_patience_invalid() -> None:
-    """ValueError for lr_patience < 1."""
-    with pytest.raises(ValueError, match="lr_patience"):
-        TrainConfig(lr_patience=0)
+def test_config_lr_learn_steps_zero_lr_raises() -> None:
+    """ValueError for lr <= 0 in lr_learn_steps."""
+    with pytest.raises(ValueError, match="lr must be > 0"):
+        TrainConfig(lr_learn_steps=[(0, 0, 0.0)])
 
 
 # ---------------------------------------------------------------------------
@@ -181,60 +178,8 @@ def test_config_lr_patience_invalid() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_lr_reduces_when_energy_increases() -> None:
-    """LR is reduced when epoch energy increases (patience=1)."""
-    torch.manual_seed(42)
-    net = PredictiveCodingNetwork(dims=[20, 10, 5])
-    dl = _make_dataloader()
-
-    # Use 4 epochs, patience=1. With lr_learn=1.0 (absurdly high),
-    # energy will spike, triggering reduction.
-    config = _fast_config(
-        num_epochs=4,
-        lr_learn=1.0,
-        lr_schedule="reduce_on_plateau",
-        lr_decay_factor=0.5,
-        lr_patience=1,
-    )
-    history = train_pcn(net, dl, config)
-
-    # With lr_learn=1.0 the energy will spike; LR should have been reduced
-    assert len(history.lr_learn_per_epoch) == 4
-    # At least one reduction should have occurred
-    assert history.lr_learn_per_epoch[-1] < 1.0, (
-        f"Expected LR reduction but final LR={history.lr_learn_per_epoch[-1]}"
-    )
-
-
-def test_lr_unchanged_when_schedule_disabled() -> None:
-    """LR stays constant when lr_schedule=None."""
-    torch.manual_seed(42)
-    net = PredictiveCodingNetwork(dims=[20, 10, 5])
-    dl = _make_dataloader()
-    config = _fast_config(
-        num_epochs=3,
-        lr_learn=1.0,
-        lr_schedule=None,
-    )
-    history = train_pcn(net, dl, config)
-
-    assert len(history.lr_learn_per_epoch) == 3
-    assert all(lr == 1.0 for lr in history.lr_learn_per_epoch)
-
-
-def test_lr_learn_per_epoch_tracked() -> None:
-    """history.lr_learn_per_epoch has one entry per epoch."""
-    torch.manual_seed(42)
-    net = PredictiveCodingNetwork(dims=[20, 10, 5])
-    dl = _make_dataloader()
-    config = _fast_config(num_epochs=3)
-    history = train_pcn(net, dl, config)
-
-    assert len(history.lr_learn_per_epoch) == 3
-
-
-def test_lr_callback_fires_on_reduction() -> None:
-    """on_lr_reduced callback fires when LR is actually reduced."""
+def test_lr_steps_applied_at_correct_batch() -> None:
+    """lr_learn_steps changes LR at the specified (epoch, batch)."""
 
     class LRTracker(TrainCallback):
         def __init__(self) -> None:
@@ -248,20 +193,43 @@ def test_lr_callback_fires_on_reduction() -> None:
     dl = _make_dataloader()
     tracker = LRTracker()
     config = _fast_config(
-        num_epochs=4,
-        lr_learn=1.0,
-        lr_schedule="reduce_on_plateau",
-        lr_decay_factor=0.5,
-        lr_patience=1,
+        num_epochs=2,
+        lr_learn=0.1,
+        lr_learn_steps=[(0, 0, 0.1), (1, 0, 0.01)],
         callback=tracker,
     )
-    train_pcn(net, dl, config)
+    history = train_pcn(net, dl, config)
 
-    # At least one reduction should have occurred (lr_learn=1.0 causes spikes)
-    assert len(tracker.reductions) > 0
-    # Each reduction should halve the LR
-    for old, new in tracker.reductions:
-        assert new == pytest.approx(old * 0.5)
+    # LR should change at epoch 1 batch 0: 0.1 -> 0.01
+    assert len(tracker.reductions) == 1
+    assert tracker.reductions[0] == (0.1, 0.01)
+    assert len(history.lr_learn_per_epoch) == 2
+
+
+def test_lr_unchanged_when_no_steps() -> None:
+    """LR stays constant when lr_learn_steps is None."""
+    torch.manual_seed(42)
+    net = PredictiveCodingNetwork(dims=[20, 10, 5])
+    dl = _make_dataloader()
+    config = _fast_config(
+        num_epochs=3,
+        lr_learn=0.5,
+    )
+    history = train_pcn(net, dl, config)
+
+    assert len(history.lr_learn_per_epoch) == 3
+    assert all(lr == 0.5 for lr in history.lr_learn_per_epoch)
+
+
+def test_lr_learn_per_epoch_tracked() -> None:
+    """history.lr_learn_per_epoch has one entry per epoch."""
+    torch.manual_seed(42)
+    net = PredictiveCodingNetwork(dims=[20, 10, 5])
+    dl = _make_dataloader()
+    config = _fast_config(num_epochs=3)
+    history = train_pcn(net, dl, config)
+
+    assert len(history.lr_learn_per_epoch) == 3
 
 
 # ---------------------------------------------------------------------------

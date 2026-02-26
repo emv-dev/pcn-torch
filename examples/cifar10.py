@@ -35,8 +35,13 @@ NUM_EPOCHS = 3
 T_INFER = 50  # Training inference steps (supervised, with labels clamped)
 T_INFER_TEST = 500  # Test inference steps (unsupervised, needs more steps)
 LR_INFER = 0.05
-LR_LEARN = 0.01
-LR_SCHEDULE = "reduce_on_plateau"
+LR_LEARN = 0.05
+# Manual LR schedule: (epoch, batch, lr) breakpoints
+# Start aggressive at 0.05, drop to 0.005 at batch 20 of epoch 0
+LR_LEARN_STEPS: list[tuple[int, int, float]] = [
+    (0, 0, 0.05),
+    (0, 20, 0.005),
+]
 DATA_ROOT = "./data"
 
 
@@ -110,7 +115,7 @@ def main() -> None:
         lr_infer=LR_INFER,
         lr_learn=LR_LEARN,
         num_epochs=NUM_EPOCHS,
-        lr_schedule=LR_SCHEDULE,
+        lr_learn_steps=LR_LEARN_STEPS,
         callback=RichCallback(device=str(device)),
     )
 
