@@ -40,7 +40,7 @@ LR_LEARN = 0.05
 # Start aggressive at 0.05, drop to 0.005 at batch 20 of epoch 0
 LR_LEARN_STEPS: list[tuple[int, int, float]] = [
     (0, 0, 0.05),
-    (0, 20, 0.005),
+    (0, 10, 1e-12),
 ]
 DATA_ROOT = "./data"
 
@@ -143,6 +143,11 @@ def main() -> None:
         print(f"  Energy (final):      {e_last:.6f}")  # noqa: T201
         convergence = e_first - e_last
         print(f"  Energy reduction:    {convergence:.6f}")  # noqa: T201
+    if history.energy.per_epoch_pre_learn:
+        pl_first = history.energy.per_epoch_pre_learn[0]
+        pl_last = history.energy.per_epoch_pre_learn[-1]
+        print(f"  Pre-learn energy (epoch 1): {pl_first:.6f}")  # noqa: T201
+        print(f"  Pre-learn energy (final):   {pl_last:.6f}")  # noqa: T201
     if history.lr_learn_per_epoch:
         lr_start = history.lr_learn_per_epoch[0]
         lr_final = history.lr_learn_per_epoch[-1]

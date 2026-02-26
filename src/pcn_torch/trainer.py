@@ -71,7 +71,9 @@ class EnergyHistory:
     """Energy tracking data at multiple granularities."""
 
     per_batch: list[float] = field(default_factory=list)
+    per_batch_pre_learn: list[float] = field(default_factory=list)
     per_epoch: list[float] = field(default_factory=list)
+    per_epoch_pre_learn: list[float] = field(default_factory=list)
 
 
 @dataclass
@@ -203,7 +205,16 @@ class _PlainCallback(TrainCallback):
 
     def on_epoch_end(self, epoch: int, history: TrainHistory) -> None:
         energy = history.energy.per_epoch[-1] if history.energy.per_epoch else 0.0
-        parts = [f"Epoch {epoch + 1}", f"energy={energy:.4f}"]
+        pre_learn = (
+            history.energy.per_epoch_pre_learn[-1]
+            if history.energy.per_epoch_pre_learn
+            else 0.0
+        )
+        parts = [
+            f"Epoch {epoch + 1}",
+            f"energy={energy:.4f}",
+            f"pre_learn={pre_learn:.4f}",
+        ]
         if history.train_accuracy:
             parts.append(f"accuracy={history.train_accuracy[-1]:.4f}")
         print(" | ".join(parts))  # noqa: T201
@@ -212,6 +223,9 @@ class _PlainCallback(TrainCallback):
         print("Training complete.")  # noqa: T201
         if history.energy.per_epoch:
             print(f"  Final energy: {history.energy.per_epoch[-1]:.4f}")  # noqa: T201
+        if history.energy.per_epoch_pre_learn:
+            pl = history.energy.per_epoch_pre_learn[-1]
+            print(f"  Final pre-learn energy: {pl:.4f}")  # noqa: T201
         if history.train_accuracy:
             print(f"  Final accuracy: {history.train_accuracy[-1]:.4f}")  # noqa: T201
 
@@ -319,7 +333,16 @@ class RichCallback(TrainCallback):
             self._progress.stop()
             self._progress = None
         energy = history.energy.per_epoch[-1] if history.energy.per_epoch else 0.0
-        parts = [f"  Epoch {epoch + 1}/{self._num_epochs}", f"energy={energy:.6f}"]
+        pre_learn = (
+            history.energy.per_epoch_pre_learn[-1]
+            if history.energy.per_epoch_pre_learn
+            else 0.0
+        )
+        parts = [
+            f"  Epoch {epoch + 1}/{self._num_epochs}",
+            f"energy={energy:.6f}",
+            f"pre_learn={pre_learn:.6f}",
+        ]
         if history.train_accuracy:
             parts.append(f"acc={history.train_accuracy[-1]:.1%}")
         self._console.print(" | ".join(parts))
@@ -414,6 +437,7 @@ def train_pcn(
     for epoch in range(config.num_epochs):
         callback.on_epoch_start(epoch, config.num_epochs)
         epoch_energy = 0.0
+        epoch_pre_learn_energy = 0.0
         epoch_correct = 0
         epoch_total = 0
 
@@ -508,6 +532,11 @@ def train_pcn(
                 current_lr_learn = step_lr
                 callback.on_lr_reduced(old_lr, current_lr_learn)
 
+            # Record pre-learn energy (honest generalization metric)
+            pre_learn_energy = compute_energy(model.compute_errors(x_batch, y_batch))
+            history.energy.per_batch_pre_learn.append(pre_learn_energy)
+            epoch_pre_learn_energy += pre_learn_energy * B
+
             # === LEARNING PHASE (no autocast -- Pitfall 5) ===
             states = [x_batch, *model.latents]
 
@@ -565,7 +594,11 @@ def train_pcn(
 
         # Epoch summary
         epoch_mean_energy = epoch_energy / epoch_total if epoch_total > 0 else 0.0
+        epoch_mean_pre_learn = (
+            epoch_pre_learn_energy / epoch_total if epoch_total > 0 else 0.0
+        )
         history.energy.per_epoch.append(epoch_mean_energy)
+        history.energy.per_epoch_pre_learn.append(epoch_mean_pre_learn)
         history.train_loss.append(epoch_mean_energy)
         if config.task == "classification" and epoch_total > 0:
             history.train_accuracy.append(epoch_correct / epoch_total)
