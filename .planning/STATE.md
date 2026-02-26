@@ -15,7 +15,7 @@ Status: In progress
 Last activity: 2026-02-25 -- Completed 04-02-PLAN.md (CIFAR-10 example script)
 
 Progress: [#######.] 87% (7/8 plans)
-Quick tasks: 3 completed (quick-001, quick-002, quick-003)
+Quick tasks: 4 completed (quick-001, quick-002, quick-003, quick-004)
 
 ## Performance Metrics
 
@@ -69,6 +69,9 @@ Recent decisions affecting current work:
 - [04-03]: Planning docs links removed from user-facing README entirely
 - [04-02]: Fixed config constants (no argparse) for example scripts
 - [04-02]: noqa: T201 on print statements in examples (defensive, T201 not in ruff select)
+- [quick-004]: LR schedule only affects lr_learn (weight updates), NOT lr_infer (latent inference)
+- [quick-004]: Default schedule is reduce_on_plateau (enabled by default, None disables)
+- [quick-004]: Strictly less-than comparison for energy improvement (equal counts as plateau)
 
 ### Pending Todos
 
@@ -85,9 +88,10 @@ None yet.
 | 001 | Add README linking all planning documents | 2026-02-20 | 0e9a31c | [001-add-readme-linking-planning-docs](./quick/001-add-readme-linking-planning-docs/) |
 | 002 | Add post-phase GitHub merge workflow | 2026-02-20 | 0535bb2 | [002-add-post-phase-github-merge-workflow](./quick/002-add-post-phase-github-merge-workflow/) |
 | 003 | Make README plain English for accessibility | 2026-02-26 | ced4729 | [003-make-readme-plain-english-accessible](./quick/003-make-readme-plain-english-accessible/) |
+| 004 | Add ReduceOnPlateau LR schedule for lr_learn | 2026-02-26 | 487ee02 | [004-add-reduce-on-plateau-lr-schedule](./quick/004-add-reduce-on-plateau-lr-schedule/) |
 
 ## Session Continuity
 
-Last session: 2026-02-26T13:45Z
-Stopped at: Completed quick-003 (Make README plain English for accessibility)
+Last session: 2026-02-26T15:07Z
+Stopped at: Completed quick-004 (Add ReduceOnPlateau LR schedule for lr_learn)
 Resume file: None
