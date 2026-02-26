@@ -106,9 +106,7 @@ def test_compute_energy_per_layer_sum_matches_total() -> None:
     _, errors = _make_network_and_errors()
     total = compute_energy(errors)
     per_layer = compute_energy_per_layer(errors)
-    assert torch.allclose(
-        torch.tensor(sum(per_layer)), torch.tensor(total), atol=1e-6
-    )
+    assert torch.allclose(torch.tensor(sum(per_layer)), torch.tensor(total), atol=1e-6)
 
 
 def test_compute_energy_float16_safe() -> None:

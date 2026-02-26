@@ -170,9 +170,7 @@ def test_no_autograd_graph_during_training() -> None:
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
         train_pcn(net, dl, config)
-        autograd_warnings = [
-            x for x in w if "autograd" in str(x.message).lower()
-        ]
+        autograd_warnings = [x for x in w if "autograd" in str(x.message).lower()]
         assert len(autograd_warnings) == 0
 
     # Verify no latent has grad_fn after training
@@ -295,9 +293,7 @@ def test_train_pcn_weights_change() -> None:
     config = _fast_config()
 
     # Snapshot weights before training
-    before = {
-        name: param.clone() for name, param in net.named_parameters()
-    }
+    before = {name: param.clone() for name, param in net.named_parameters()}
 
     train_pcn(net, dl, config)
 

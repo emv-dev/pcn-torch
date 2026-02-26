@@ -35,7 +35,7 @@ NUM_EPOCHS = 3
 T_INFER = 50  # Training inference steps (supervised, with labels clamped)
 T_INFER_TEST = 500  # Test inference steps (unsupervised, needs more steps)
 LR_INFER = 0.05
-LR_LEARN = 0.005
+LR_LEARN = 0.01
 DATA_ROOT = "./data"
 
 
@@ -43,9 +43,11 @@ def load_cifar10() -> tuple[DataLoader, DataLoader]:
     """Download CIFAR-10 and return train and test DataLoaders."""
     # Paper normalizes to [0,1] only (ToTensor does this).
     # No per-channel mean/std normalization.
-    transform = transforms.Compose([
-        transforms.ToTensor(),
-    ])
+    transform = transforms.Compose(
+        [
+            transforms.ToTensor(),
+        ]
+    )
     try:
         train_set = torchvision.datasets.CIFAR10(
             root=DATA_ROOT,

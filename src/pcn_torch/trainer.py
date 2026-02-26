@@ -130,10 +130,7 @@ class TrainConfig:
 
     def __post_init__(self) -> None:
         if self.task not in ("classification", "regression"):
-            msg = (
-                f"task must be 'classification' or 'regression', "
-                f"got '{self.task}'"
-            )
+            msg = f"task must be 'classification' or 'regression', got '{self.task}'"
             raise ValueError(msg)
         if self.T_infer < 1:
             msg = f"T_infer must be >= 1, got {self.T_infer}"
@@ -258,7 +255,7 @@ class RichCallback(TrainCallback):
             self._fallback.on_batch_start(batch, num_batches)
             return
         if self._progress is not None and self._epoch_task_id is not None:
-            self._progress.update(self._epoch_task_id, total=num_batches)
+            self._progress.update(self._epoch_task_id, total=num_batches)  # type: ignore[arg-type]
 
     def on_batch_end(self, batch: int, batch_energy: float) -> None:
         if self._fallback is not None:
@@ -272,10 +269,10 @@ class RichCallback(TrainCallback):
                 and self._history._running_accuracy > 0
             ):
                 parts.append(f"acc={self._history._running_accuracy:.1%}")
-            self._metrics_col.text_format = (
-                "[dim]|[/dim] " + " [dim]|[/dim] ".join(parts)
+            self._metrics_col.text_format = "[dim]|[/dim] " + " [dim]|[/dim] ".join(
+                parts
             )
-            self._progress.advance(self._epoch_task_id)
+            self._progress.advance(self._epoch_task_id)  # type: ignore[arg-type]
 
     def on_epoch_end(self, epoch: int, history: TrainHistory) -> None:
         if self._fallback is not None:
@@ -299,13 +296,9 @@ class RichCallback(TrainCallback):
             self._progress = None
         self._console.print("[bold green]Training complete.[/bold green]")
         if history.energy.per_epoch:
-            self._console.print(
-                f"  Final energy: {history.energy.per_epoch[-1]:.6f}"
-            )
+            self._console.print(f"  Final energy: {history.energy.per_epoch[-1]:.6f}")
         if history.train_accuracy:
-            self._console.print(
-                f"  Final accuracy: {history.train_accuracy[-1]:.4f}"
-            )
+            self._console.print(f"  Final accuracy: {history.train_accuracy[-1]:.4f}")
 
 
 # ---------------------------------------------------------------------------
@@ -407,7 +400,8 @@ def train_pcn(
             # Build weight reference list for in-place updates
             # nn.ModuleList iteration returns nn.Module, not PCNLayer
             weights: list[Tensor] = [
-                layer.weight for layer in model.layers  # type: ignore[union-attr]
+                layer.weight
+                for layer in model.layers  # type: ignore[union-attr]
             ] + [model._readout.weight]  # type: ignore[assignment]
 
             T_learn = config.T_learn if config.T_learn is not None else B
@@ -422,9 +416,7 @@ def train_pcn(
             )
 
             with torch.no_grad(), amp_ctx:
-                energy_window: deque[float] = deque(
-                    maxlen=config.energy_window_size
-                )
+                energy_window: deque[float] = deque(maxlen=config.energy_window_size)
 
                 for t in range(config.T_infer):
                     # Runtime guard on first iteration only
@@ -446,9 +438,7 @@ def train_pcn(
                         extended_errors.append(errors.top_error)
                     else:
                         # Unsupervised: E^(L) = 0
-                        extended_errors.append(
-                            torch.zeros_like(model.latents[-1])
-                        )
+                        extended_errors.append(torch.zeros_like(model.latents[-1]))
 
                     # Update latents (synchronous: all errors computed first)
                     for idx in range(len(model.latents)):
@@ -481,23 +471,17 @@ def train_pcn(
                     # Weight gradients with batch averaging (Pitfall 2)
                     for idx in range(len(model.layers)):
                         # Paper: G_W^(l) = -(1/B) * H^(l).T @ X^(l+1)
-                        grad_W = (
-                            -(errors.gm_errors[idx].T @ states[idx + 1]) / B
-                        )
+                        grad_W = -(errors.gm_errors[idx].T @ states[idx + 1]) / B
                         weights[idx].data -= config.lr_learn * grad_W
 
                     # Readout weight update
                     if errors.supervised_error is not None:
                         # Paper: G_W_out = (1/B) * E_sup.T @ X^(L)
-                        grad_W_out = (
-                            errors.supervised_error.T @ model.latents[-1]
-                        ) / B
+                        grad_W_out = (errors.supervised_error.T @ model.latents[-1]) / B
                         weights[-1].data -= config.lr_learn * grad_W_out
 
             # Record batch energy (after learning)
-            batch_energy = compute_energy(
-                model.compute_errors(x_batch, y_batch)
-            )
+            batch_energy = compute_energy(model.compute_errors(x_batch, y_batch))
             history.energy.per_batch.append(batch_energy)
             epoch_energy += batch_energy * B
 
@@ -510,12 +494,8 @@ def train_pcn(
                 with torch.no_grad(), amp_ctx:
                     for _t in range(config.effective_T_infer_test):
                         free_errors = model.compute_errors(x_batch, y=None)
-                        free_extended: list[Tensor] = list(
-                            free_errors.errors
-                        )
-                        free_extended.append(
-                            torch.zeros_like(model.latents[-1])
-                        )
+                        free_extended: list[Tensor] = list(free_errors.errors)
+                        free_extended.append(torch.zeros_like(model.latents[-1]))
                         for idx in range(len(model.latents)):
                             grad_x = free_extended[idx + 1] - (
                                 free_errors.gm_errors[idx] @ weights[idx]
@@ -524,9 +504,7 @@ def train_pcn(
 
                 y_hat = model.predict()
                 predicted = y_hat.argmax(dim=1)
-                targets = (
-                    y_batch.argmax(dim=1) if y_batch.dim() > 1 else y_batch
-                )
+                targets = y_batch.argmax(dim=1) if y_batch.dim() > 1 else y_batch
                 epoch_correct += int((predicted == targets).sum().item())
             epoch_total += B
             if config.task == "classification" and epoch_total > 0:
@@ -535,9 +513,7 @@ def train_pcn(
             callback.on_batch_end(batch_idx, batch_energy)
 
         # Epoch summary
-        epoch_mean_energy = (
-            epoch_energy / epoch_total if epoch_total > 0 else 0.0
-        )
+        epoch_mean_energy = epoch_energy / epoch_total if epoch_total > 0 else 0.0
         history.energy.per_epoch.append(epoch_mean_energy)
         history.train_loss.append(epoch_mean_energy)
         if config.task == "classification" and epoch_total > 0:
@@ -603,16 +579,15 @@ def test_pcn(
             # Build weight references for latent gradient computation
             # nn.ModuleList iteration returns nn.Module, not PCNLayer
             weights: list[Tensor] = [
-                layer.weight for layer in model.layers  # type: ignore[union-attr]
+                layer.weight
+                for layer in model.layers  # type: ignore[union-attr]
             ] + [model._readout.weight]  # type: ignore[assignment]
 
             # Inference WITHOUT supervised signal (y=None).
             # Latents settle from bottom-up prediction errors only --
             # the model must infer the answer, not be told it.
             with amp_ctx:
-                energy_window: deque[float] = deque(
-                    maxlen=config.energy_window_size
-                )
+                energy_window: deque[float] = deque(maxlen=config.energy_window_size)
 
                 for _t in range(T_test):
                     errors = model.compute_errors(x_batch, y=None)
@@ -621,9 +596,7 @@ def test_pcn(
 
                     # No supervised signal -> top_error is None -> zero
                     extended_errors: list[Tensor] = list(errors.errors)
-                    extended_errors.append(
-                        torch.zeros_like(model.latents[-1])
-                    )
+                    extended_errors.append(torch.zeros_like(model.latents[-1]))
 
                     # Update latents
                     for idx in range(len(model.latents)):
@@ -649,9 +622,7 @@ def test_pcn(
             if config.task == "classification":
                 y_hat = model.predict()
                 predicted = y_hat.argmax(dim=1)
-                targets = (
-                    y_batch.argmax(dim=1) if y_batch.dim() > 1 else y_batch
-                )
+                targets = y_batch.argmax(dim=1) if y_batch.dim() > 1 else y_batch
                 correct += int((predicted == targets).sum().item())
             total += B
 

@@ -22,6 +22,7 @@ The clever part is that everything stays local. Training has two phases:
 Unlike backpropagation, which sends a single error signal backward through the entire network, PCNs let each layer learn independently using only local information. This is closer to how the brain actually works, and it means the algorithm never needs to store intermediate activations or build a computation graph. All operations in pcn-torch run under `torch.no_grad()` -- no autograd graph is ever constructed.
 
 For the full math and derivations, see Stenlund (2025) [arXiv:2506.06332v1](https://arxiv.org/abs/2506.06332).
+Do not trust their test accuracy however. There is a severe data leakage problem in their code. They do not acheive state of the art results.
 
 ## Installation
 
@@ -107,8 +108,8 @@ The `examples/cifar10.py` script trains a 3-hidden-layer MLP PCN on CIFAR-10:
 | Test inference steps (T_infer_test) | 500 |
 | Epochs | 3 |
 | Batch size | 500 |
-| Expected test accuracy | 50-60% |
-| Training time (GPU) | ~4-5 minutes |
+| Expected test accuracy | ~13% |
+| Training time (GPU) | ~6 minutes |
 
 **A note on test accuracy:** During training, PCNs clamp both the input and the label, so the network converges fast. At test time, only the input is clamped -- the network has to figure out the label on its own. This requires more inference steps (hence `T_infer_test=500` vs `T_infer=50`). Some PCN implementations run test inference with labels clamped, which produces near-perfect "accuracy" but only measures label reconstruction, not classification. Our `test_pcn` does genuine classification -- no labels at test time.
 
