@@ -28,11 +28,12 @@ from pcn_torch import (
 )
 
 # ---------------------------------------------------------------------------
-# Configuration — matches arXiv:2506.06332v1 Section 5
+# Configuration -- matches arXiv:2506.06332v1 Section 5
 # ---------------------------------------------------------------------------
 BATCH_SIZE = 500
-NUM_EPOCHS = 4
-T_INFER = 50
+NUM_EPOCHS = 3
+T_INFER = 50  # Training inference steps (supervised, with labels clamped)
+T_INFER_TEST = 500  # Test inference steps (unsupervised, needs more steps)
 LR_INFER = 0.05
 LR_LEARN = 0.005
 DATA_ROOT = "./data"
@@ -102,6 +103,7 @@ def main() -> None:
     config = TrainConfig(
         task="classification",
         T_infer=T_INFER,
+        T_infer_test=T_INFER_TEST,
         lr_infer=LR_INFER,
         lr_learn=LR_LEARN,
         num_epochs=NUM_EPOCHS,

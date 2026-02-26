@@ -69,6 +69,7 @@ def _fast_config(**overrides: object) -> TrainConfig:
     """Return a fast TrainConfig for structural tests (not convergence)."""
     defaults: dict[str, object] = {
         "T_infer": 3,
+        "T_infer_test": 5,  # Keep test inference steps small for fast tests
         "T_learn": 2,
         "num_epochs": 1,
         "use_mixed_precision": False,
@@ -109,6 +110,24 @@ def test_config_invalid_T_learn() -> None:
     """ValueError for T_learn < 1 (when not None)."""
     with pytest.raises(ValueError, match="T_learn must be"):
         TrainConfig(T_learn=0)
+
+
+def test_config_invalid_T_infer_test() -> None:
+    """ValueError for T_infer_test < 1 (when not None)."""
+    with pytest.raises(ValueError, match="T_infer_test must be"):
+        TrainConfig(T_infer_test=0)
+
+
+def test_config_effective_T_infer_test_default() -> None:
+    """effective_T_infer_test defaults to T_infer * 10."""
+    config = TrainConfig(T_infer=50)
+    assert config.effective_T_infer_test == 500
+
+
+def test_config_effective_T_infer_test_explicit() -> None:
+    """effective_T_infer_test uses explicit T_infer_test when set."""
+    config = TrainConfig(T_infer=50, T_infer_test=200)
+    assert config.effective_T_infer_test == 200
 
 
 # ---------------------------------------------------------------------------

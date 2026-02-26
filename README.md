@@ -102,14 +102,17 @@ The `examples/cifar10.py` script trains a 3-hidden-layer MLP PCN on CIFAR-10:
 
 | Metric | Value |
 |--------|-------|
-| Architecture | dims=[3072, 1024, 1024, 512], output_dim=10 |
-| Inference steps (T_infer) | 20 |
-| Epochs | 10 |
-| Batch size | 128 |
-| Expected test accuracy | 45-55% |
-| Training time (CPU) | ~5-15 minutes |
+| Architecture | dims=[3072, 1000, 500, 10], output_dim=10 |
+| Training inference steps (T_infer) | 50 |
+| Test inference steps (T_infer_test) | 500 |
+| Epochs | 3 |
+| Batch size | 500 |
+| Expected test accuracy | 50-60% |
+| Training time (GPU) | ~4-5 minutes |
 
-Note: A fully-connected MLP is architecturally limited on CIFAR-10 regardless of the learning rule -- both backprop and PCN achieve similar accuracy with the same architecture. The example demonstrates that the PCN learning algorithm works correctly, not that MLPs are competitive with convolutional networks on vision tasks.
+**A note on test accuracy:** During training, PCNs clamp both the input and the label, so the network converges fast. At test time, only the input is clamped -- the network has to figure out the label on its own. This requires more inference steps (hence `T_infer_test=500` vs `T_infer=50`). Some PCN implementations run test inference with labels clamped, which produces near-perfect "accuracy" but only measures label reconstruction, not classification. Our `test_pcn` does genuine classification -- no labels at test time.
+
+A fully-connected MLP is architecturally limited on CIFAR-10 regardless of the learning rule -- both backprop and PCN achieve similar accuracy with the same architecture. The example demonstrates that the PCN learning algorithm works correctly, not that MLPs are competitive with convolutional networks on vision tasks.
 
 ## How It Works
 

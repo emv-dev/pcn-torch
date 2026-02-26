@@ -95,7 +95,13 @@ class TrainConfig:
 
     Attributes:
         task: Either 'classification' or 'regression'.
-        T_infer: Number of inference steps per batch.
+        T_infer: Number of inference steps per batch during training
+            (supervised inference with labels clamped).
+        T_infer_test: Number of inference steps for test/evaluation
+            (unsupervised inference without labels). Defaults to None,
+            meaning ``T_infer * 10``. Unsupervised inference needs more
+            steps because the bottom-up signal alone converges slower
+            than when the supervised signal also drives the latents.
         T_learn: Number of learning steps per batch. Defaults to None,
             meaning T_learn = batch_size (paper recommendation).
         lr_infer: Learning rate for latent variable updates during inference.
@@ -112,6 +118,7 @@ class TrainConfig:
 
     task: str = "classification"
     T_infer: int = 50
+    T_infer_test: int | None = None
     T_learn: int | None = None
     lr_infer: float = 0.05
     lr_learn: float = 0.005
@@ -131,9 +138,17 @@ class TrainConfig:
         if self.T_infer < 1:
             msg = f"T_infer must be >= 1, got {self.T_infer}"
             raise ValueError(msg)
+        if self.T_infer_test is not None and self.T_infer_test < 1:
+            msg = f"T_infer_test must be >= 1 or None, got {self.T_infer_test}"
+            raise ValueError(msg)
         if self.T_learn is not None and self.T_learn < 1:
             msg = f"T_learn must be >= 1 or None, got {self.T_learn}"
             raise ValueError(msg)
+
+    @property
+    def effective_T_infer_test(self) -> int:
+        """Resolved test inference steps (T_infer_test or T_infer * 10)."""
+        return self.T_infer_test if self.T_infer_test is not None else self.T_infer * 10
 
 
 # ---------------------------------------------------------------------------
@@ -486,8 +501,27 @@ def train_pcn(
             history.energy.per_batch.append(batch_energy)
             epoch_energy += batch_energy * B
 
-            # Track accuracy for classification (before callback for live display)
+            # Track accuracy for classification via free inference
+            # (no supervised signal, same as test_pcn) to get honest accuracy
             if config.task == "classification":
+                # Re-initialize latents and run unsupervised inference
+                # to measure actual classification ability
+                model.init_latents(B)
+                with torch.no_grad(), amp_ctx:
+                    for _t in range(config.effective_T_infer_test):
+                        free_errors = model.compute_errors(x_batch, y=None)
+                        free_extended: list[Tensor] = list(
+                            free_errors.errors
+                        )
+                        free_extended.append(
+                            torch.zeros_like(model.latents[-1])
+                        )
+                        for idx in range(len(model.latents)):
+                            grad_x = free_extended[idx + 1] - (
+                                free_errors.gm_errors[idx] @ weights[idx]
+                            )
+                            model.latents[idx] -= config.lr_infer * grad_x
+
                 y_hat = model.predict()
                 predicted = y_hat.argmax(dim=1)
                 targets = (
@@ -527,14 +561,19 @@ def test_pcn(
 ) -> dict[str, float]:
     """Evaluate a trained PCN on a test set.
 
-    Runs inference WITHOUT the supervised signal — the model must predict
+    Runs inference WITHOUT the supervised signal -- the model must predict
     the label from the input alone using only bottom-up generative errors.
     Labels are held out and used only for scoring after inference completes.
+
+    Uses ``config.effective_T_infer_test`` inference steps (defaults to
+    ``T_infer * 10``).  Unsupervised inference converges slower than
+    supervised inference because the top latent receives no label signal
+    and must be driven entirely by bottom-up prediction errors.
 
     Args:
         model: The trained PredictiveCodingNetwork to evaluate.
         dataloader: PyTorch DataLoader providing (x_batch, y_batch) tuples.
-        config: Training configuration (uses T_infer, lr_infer, task).
+        config: Training configuration (uses T_infer_test, lr_infer, task).
 
     Returns:
         Dictionary with 'accuracy' and 'energy' keys.
@@ -544,6 +583,7 @@ def test_pcn(
     correct = 0
     total = 0
     total_energy = 0.0
+    T_test = config.effective_T_infer_test
 
     amp_ctx = (
         torch.amp.autocast(device_type="cuda")
@@ -567,19 +607,19 @@ def test_pcn(
             ] + [model._readout.weight]  # type: ignore[assignment]
 
             # Inference WITHOUT supervised signal (y=None).
-            # Latents settle from bottom-up prediction errors only —
+            # Latents settle from bottom-up prediction errors only --
             # the model must infer the answer, not be told it.
             with amp_ctx:
                 energy_window: deque[float] = deque(
                     maxlen=config.energy_window_size
                 )
 
-                for _t in range(config.T_infer):
+                for _t in range(T_test):
                     errors = model.compute_errors(x_batch, y=None)
                     step_energy = compute_energy(errors)
                     energy_window.append(step_energy)
 
-                    # No supervised signal → top_error is None → zero
+                    # No supervised signal -> top_error is None -> zero
                     extended_errors: list[Tensor] = list(errors.errors)
                     extended_errors.append(
                         torch.zeros_like(model.latents[-1])
