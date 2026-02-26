@@ -15,7 +15,7 @@ Status: In progress
 Last activity: 2026-02-25 -- Completed 04-02-PLAN.md (CIFAR-10 example script)
 
 Progress: [#######.] 87% (7/8 plans)
-Quick tasks: 4 completed (quick-001, quick-002, quick-003, quick-004)
+Quick tasks: 5 completed (quick-001, quick-002, quick-003, quick-004, quick-005)
 
 ## Performance Metrics
 
@@ -72,6 +72,8 @@ Recent decisions affecting current work:
 - [quick-004]: LR schedule only affects lr_learn (weight updates), NOT lr_infer (latent inference)
 - [quick-004]: Default schedule is reduce_on_plateau (enabled by default, None disables)
 - [quick-004]: Strictly less-than comparison for energy improvement (equal counts as plateau)
+- [quick-005]: No ANSI colors in ci-local.sh (works everywhere including Git Bash on Windows)
+- [quick-005]: --fix flag runs ruff fix + format then exits (skips typecheck/test)
 
 ### Pending Todos
 
@@ -89,9 +91,10 @@ None yet.
 | 002 | Add post-phase GitHub merge workflow | 2026-02-20 | 0535bb2 | [002-add-post-phase-github-merge-workflow](./quick/002-add-post-phase-github-merge-workflow/) |
 | 003 | Make README plain English for accessibility | 2026-02-26 | ced4729 | [003-make-readme-plain-english-accessible](./quick/003-make-readme-plain-english-accessible/) |
 | 004 | Add ReduceOnPlateau LR schedule for lr_learn | 2026-02-26 | 487ee02 | [004-add-reduce-on-plateau-lr-schedule](./quick/004-add-reduce-on-plateau-lr-schedule/) |
+| 005 | Add local CI check script | 2026-02-26 | d5def0a | [005-add-local-ci-check-script](./quick/005-add-local-ci-check-script/) |
 
 ## Session Continuity
 
-Last session: 2026-02-26T15:07Z
-Stopped at: Completed quick-004 (Add ReduceOnPlateau LR schedule for lr_learn)
+Last session: 2026-02-26T20:55Z
+Stopped at: Completed quick-005 (Add local CI check script)
 Resume file: None
