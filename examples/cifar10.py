@@ -3,9 +3,10 @@
 Run:
     python examples/cifar10.py
 
-Trains a 3-hidden-layer Predictive Coding Network on CIFAR-10 using local
-Hebbian-like update rules (no backpropagation). Achieves approximately
-45-55% test accuracy in 5-15 minutes on CPU.
+Trains a 3-layer Predictive Coding Network on CIFAR-10 using local
+Hebbian-like update rules (no backpropagation).
+
+Architecture and hyperparameters match arXiv:2506.06332v1 Section 5.
 
 Requirements (for this example only):
     pip install torchvision
@@ -27,26 +28,22 @@ from pcn_torch import (
 )
 
 # ---------------------------------------------------------------------------
-# Configuration (fixed -- no CLI arguments by design)
+# Configuration — matches arXiv:2506.06332v1 Section 5
 # ---------------------------------------------------------------------------
-BATCH_SIZE = 128
-NUM_EPOCHS = 10
-T_INFER = 20  # 20 steps (paper uses 50; 20 saves ~60% CPU time)
+BATCH_SIZE = 500
+NUM_EPOCHS = 4
+T_INFER = 50
 LR_INFER = 0.05
-LR_LEARN = 0.001
+LR_LEARN = 0.005
 DATA_ROOT = "./data"
-
-# CIFAR-10 channel statistics (per-channel mean and std)
-CIFAR10_MEAN = (0.4914, 0.4822, 0.4465)
-CIFAR10_STD = (0.2023, 0.1994, 0.2010)
 
 
 def load_cifar10() -> tuple[DataLoader, DataLoader]:
     """Download CIFAR-10 and return train and test DataLoaders."""
-    # NOTE: No Flatten() transform -- trainer.py calls view(B, -1).
+    # Paper normalizes to [0,1] only (ToTensor does this).
+    # No per-channel mean/std normalization.
     transform = transforms.Compose([
         transforms.ToTensor(),
-        transforms.Normalize(CIFAR10_MEAN, CIFAR10_STD),
     ])
     try:
         train_set = torchvision.datasets.CIFAR10(
@@ -79,16 +76,14 @@ def load_cifar10() -> tuple[DataLoader, DataLoader]:
 def build_model() -> PredictiveCodingNetwork:
     """Build the CIFAR-10 PCN model.
 
-    Architecture:
-        input(3072) -> hidden(1024) -> hidden(1024)
-        -> top(512) -> readout(10)
+    Architecture from arXiv:2506.06332v1:
+        input(3072) -> hidden(1000) -> hidden(500) -> top(10) -> readout(10)
 
-    dims[0] = input dimension (3 x 32 x 32 = 3072)
-    dims[-1] = top latent dimension (512)
-    output_dim = number of classes (10)
+    The top latent is 10-dimensional (same as number of classes).
+    The readout is a 10x10 matrix mapping top latent to output.
     """
     return PredictiveCodingNetwork(
-        dims=[3072, 1024, 1024, 512],
+        dims=[3072, 1000, 500, 10],
         activation="relu",
         output_dim=10,
         mode="classification",
@@ -101,7 +96,7 @@ def main() -> None:
     train_loader, test_loader = load_cifar10()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Building model on {device}: dims=[3072, 1024, 1024, 512], output_dim=10")  # noqa: T201
+    print(f"Building model on {device}: dims=[3072, 1000, 500, 10], output_dim=10")  # noqa: T201
     model = build_model().to(device)
 
     config = TrainConfig(
@@ -110,7 +105,6 @@ def main() -> None:
         lr_infer=LR_INFER,
         lr_learn=LR_LEARN,
         num_epochs=NUM_EPOCHS,
-        early_stop_threshold=1e-4,
         callback=RichCallback(device=str(device)),
     )
 

@@ -527,9 +527,9 @@ def test_pcn(
 ) -> dict[str, float]:
     """Evaluate a trained PCN on a test set.
 
-    Runs the inference loop only (no weight updates). Follows the paper's
-    testing procedure (Section 5.3): initialize latents, run inference,
-    read prediction from the readout layer.
+    Runs inference WITHOUT the supervised signal — the model must predict
+    the label from the input alone using only bottom-up generative errors.
+    Labels are held out and used only for scoring after inference completes.
 
     Args:
         model: The trained PredictiveCodingNetwork to evaluate.
@@ -555,23 +555,7 @@ def test_pcn(
         for x_batch, y_batch in dataloader:
             B = x_batch.shape[0]
             x_batch = x_batch.view(B, -1).to(device)
-
-            # Encode targets (same as train_pcn)
-            if config.task == "classification":
-                if y_batch.dim() == 1 or (
-                    y_batch.dim() == 2
-                    and y_batch.dtype in (torch.long, torch.int)
-                ):
-                    num_classes: int = model._readout.weight.shape[0]
-                    y_batch = (
-                        F.one_hot(y_batch.long(), num_classes=num_classes)
-                        .float()
-                        .to(device)
-                    )
-                else:
-                    y_batch = y_batch.to(device)
-            else:
-                y_batch = y_batch.to(device)
+            y_batch = y_batch.to(device)
 
             # Initialize latents for this batch
             model.init_latents(B)
@@ -582,25 +566,24 @@ def test_pcn(
                 layer.weight for layer in model.layers  # type: ignore[union-attr]
             ] + [model._readout.weight]  # type: ignore[assignment]
 
-            # Inference-only loop (same as training inference phase)
+            # Inference WITHOUT supervised signal (y=None).
+            # Latents settle from bottom-up prediction errors only —
+            # the model must infer the answer, not be told it.
             with amp_ctx:
                 energy_window: deque[float] = deque(
                     maxlen=config.energy_window_size
                 )
 
                 for _t in range(config.T_infer):
-                    errors = model.compute_errors(x_batch, y_batch)
+                    errors = model.compute_errors(x_batch, y=None)
                     step_energy = compute_energy(errors)
                     energy_window.append(step_energy)
 
-                    # Build extended errors
+                    # No supervised signal → top_error is None → zero
                     extended_errors: list[Tensor] = list(errors.errors)
-                    if errors.top_error is not None:
-                        extended_errors.append(errors.top_error)
-                    else:
-                        extended_errors.append(
-                            torch.zeros_like(model.latents[-1])
-                        )
+                    extended_errors.append(
+                        torch.zeros_like(model.latents[-1])
+                    )
 
                     # Update latents
                     for idx in range(len(model.latents)):
@@ -618,12 +601,11 @@ def test_pcn(
                     ):
                         break
 
-            # Compute final energy after inference
-            final_errors = model.compute_errors(x_batch, y_batch)
+            # Score: read prediction from settled latents, compare to held-out labels
+            final_errors = model.compute_errors(x_batch, y=None)
             batch_energy = compute_energy(final_errors)
             total_energy += batch_energy * B
 
-            # Compute predictions
             if config.task == "classification":
                 y_hat = model.predict()
                 predicted = y_hat.argmax(dim=1)
