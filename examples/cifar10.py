@@ -36,6 +36,7 @@ T_INFER = 50  # Training inference steps (supervised, with labels clamped)
 T_INFER_TEST = 500  # Test inference steps (unsupervised, needs more steps)
 LR_INFER = 0.05
 LR_LEARN = 0.01
+LR_SCHEDULE = "reduce_on_plateau"
 DATA_ROOT = "./data"
 
 
@@ -109,6 +110,7 @@ def main() -> None:
         lr_infer=LR_INFER,
         lr_learn=LR_LEARN,
         num_epochs=NUM_EPOCHS,
+        lr_schedule=LR_SCHEDULE,
         callback=RichCallback(device=str(device)),
     )
 
@@ -136,6 +138,13 @@ def main() -> None:
         print(f"  Energy (final):      {e_last:.6f}")  # noqa: T201
         convergence = e_first - e_last
         print(f"  Energy reduction:    {convergence:.6f}")  # noqa: T201
+    if history.lr_learn_per_epoch:
+        lr_start = history.lr_learn_per_epoch[0]
+        lr_final = history.lr_learn_per_epoch[-1]
+        if lr_final < lr_start:
+            print(f"  LR schedule:         {lr_start:.6f} -> {lr_final:.6f}")  # noqa: T201
+        else:
+            print(f"  LR (unchanged):      {lr_start:.6f}")  # noqa: T201
     print("=" * 52)  # noqa: T201
 
 
