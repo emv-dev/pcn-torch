@@ -48,7 +48,9 @@ class TrainCallback:
     def on_learning_step(self, step: int, energy: float) -> None:
         pass
 
-    def on_batch_end(self, batch: int, batch_energy: float) -> None:
+    def on_batch_end(
+        self, batch: int, batch_energy: float, pre_learn_energy: float
+    ) -> None:
         pass
 
     def on_epoch_end(self, epoch: int, history: TrainHistory) -> None:
@@ -300,12 +302,17 @@ class RichCallback(TrainCallback):
         if self._progress is not None and self._epoch_task_id is not None:
             self._progress.update(self._epoch_task_id, total=num_batches)  # type: ignore[arg-type]
 
-    def on_batch_end(self, batch: int, batch_energy: float) -> None:
+    def on_batch_end(
+        self, batch: int, batch_energy: float, pre_learn_energy: float
+    ) -> None:
         if self._fallback is not None:
             return
         if self._progress is not None and self._epoch_task_id is not None:
             # Build live metrics string
-            parts = [f"energy={batch_energy:.4f}"]
+            parts = [
+                f"energy={batch_energy:.4f}",
+                f"pre_learn={pre_learn_energy:.4f}",
+            ]
             if (
                 self._task_type == "classification"
                 and self._history is not None
@@ -590,7 +597,7 @@ def train_pcn(
             if config.task == "classification" and epoch_total > 0:
                 history._running_accuracy = epoch_correct / epoch_total
 
-            callback.on_batch_end(batch_idx, batch_energy)
+            callback.on_batch_end(batch_idx, batch_energy, pre_learn_energy)
 
         # Epoch summary
         epoch_mean_energy = epoch_energy / epoch_total if epoch_total > 0 else 0.0
