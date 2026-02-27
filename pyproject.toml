@@ -9,9 +9,43 @@ description = "Predictive Coding Networks in PyTorch"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
-dependencies = [
-    "torch>=2.0",
+authors = [
+    { name = "Enrique Mendez" },
 ]
+dependencies = [
+    "numpy>=2.2.6",
+    "rich>=14.0",
+]
+# torch is a peer dependency — install from https://pytorch.org
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Image Recognition",
+    "Typing :: Typed",
+]
+keywords = [
+    "predictive coding",
+    "neural networks",
+    "pytorch",
+    "machine learning",
+    "deep learning",
+    "biologically plausible",
+]
+
+[project.urls]
+Homepage = "https://github.com/emv-dev/pcn-torch"
+Repository = "https://github.com/emv-dev/pcn-torch"
+"Bug Tracker" = "https://github.com/emv-dev/pcn-torch/issues"
+Paper = "https://arxiv.org/abs/2506.06332"
 
 [dependency-groups]
 dev = [
@@ -19,6 +53,7 @@ dev = [
     "mypy>=1.19",
     "pytest>=9.0",
     "pytest-cov>=7.0",
+    "torchvision>=0.15",  # required for examples/cifar10.py only
 ]
 
 [tool.hatch.version]

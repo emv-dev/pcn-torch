@@ -13,8 +13,8 @@ This roadmap delivers pcn-torch as a pip-installable PyTorch library implementin
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation** - Package scaffold, PCNLayer, types, activations, and configuration (2026-02-20)
-- [ ] **Phase 2: Core Model** - PredictiveCodingNetwork hierarchy, error computation, and readout
-- [ ] **Phase 3: Training + Energy + Tests** - Inference/learning loops, energy tracking, and correctness tests
+- [x] **Phase 2: Core Model** - PredictiveCodingNetwork hierarchy, error computation, and readout (2026-02-23)
+- [x] **Phase 3: Training + Energy + Tests** - Inference/learning loops, energy tracking, and correctness tests (2026-02-24)
 - [ ] **Phase 4: Integration + Publishing** - CIFAR-10 example, PyPI publish, and README
 
 ## Phase Details
@@ -44,10 +44,10 @@ Plans:
   3. `compute_errors()` returns prediction errors and gain-modulated errors across all layers with correct shapes
   4. The readout layer is `nn.Linear(..., bias=False)` and maps the top latent to output predictions
   5. The supervised error signal is correctly projected back to latent space via W_out^T
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 02-01: PredictiveCodingNetwork, latent init, error computation, and readout layer
+- [x] 02-01-PLAN.md -- PredictiveCodingNetwork class, PCNErrors, latent init, error computation, readout, and tests (2026-02-23)
 
 ### Phase 3: Training + Energy + Tests
 **Goal**: A PredictiveCodingNetwork can be trained end-to-end on batched data using local Hebbian-like rules, with energy tracking and verified algorithmic correctness
@@ -59,11 +59,11 @@ Plans:
   3. The network trains on both classification (one-hot targets) and regression (continuous targets) without code changes
   4. Energy trajectories (per-step, per-batch) are logged during both inference and learning, and are accessible after training
   5. Unit tests verify: synchronous latent updates (not interleaved), gain-modulated error computation, no autograd graph construction, and correct W_out^T supervised error projection
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 03-01: Inference loop, learning loop, and trainer function (train_pcn, test_pcn)
-- [ ] 03-02: Energy tracking module and algorithmic correctness unit tests
+- [x] 03-01-PLAN.md -- Energy module, TrainConfig/TrainHistory/TrainCallback, RichCallback, train_pcn, test_pcn training loops (2026-02-24)
+- [x] 03-02-PLAN.md -- Algorithmic correctness tests (TST-02, TST-03, TST-04), energy tests, and public API exports (2026-02-24)
 
 ### Phase 4: Integration + Publishing
 **Goal**: Anyone can `pip install pcn-torch`, run the CIFAR-10 example, and see the library work
@@ -73,11 +73,14 @@ Plans:
   1. `pip install pcn-torch` from PyPI installs the package (with torch as a peer dependency)
   2. Running `python examples/cifar10.py` trains a PCN on CIFAR-10 and achieves reasonable accuracy (demonstrating the network works)
   3. The README contains installation instructions (including "install PyTorch first"), a quickstart code snippet, and an API overview
-  4. The package version is 0.1.0, derived from git tags via hatch-vcs
-**Plans**: TBD
+  4. The package version is v1.0.0, derived from git tags via hatch-vcs
+**Plans**: 4 plans
 
 Plans:
-- [ ] 04-01: CIFAR-10 example, public API surface (__init__.py), README, and PyPI publish
+- [ ] 04-01-PLAN.md — pyproject.toml metadata update: remove torch from deps, add authors/classifiers/keywords/URLs, add torchvision dev dep
+- [ ] 04-02-PLAN.md — CIFAR-10 example script (examples/cifar10.py) with fixed config and RichCallback
+- [ ] 04-03-PLAN.md — README rewrite: predictive coding explainer, installation, quickstart, API overview, Results section
+- [ ] 04-04-PLAN.md — Build v1.0.0 (git tag, uv build), verify artifacts (twine check), publish to TestPyPI
 
 ## Progress
 
@@ -87,10 +90,10 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 1/1 | Complete | 2026-02-20 |
-| 2. Core Model | 0/1 | Not started | - |
-| 3. Training + Energy + Tests | 0/2 | Not started | - |
-| 4. Integration + Publishing | 0/1 | Not started | - |
+| 2. Core Model | 1/1 | Complete | 2026-02-23 |
+| 3. Training + Energy + Tests | 2/2 | Complete | 2026-02-24 |
+| 4. Integration + Publishing | 0/4 | Not started | - |
 
 ---
 *Roadmap created: 2026-02-20*
-*Last updated: 2026-02-20 (Phase 1 complete)*
+*Last updated: 2026-02-25 (Phase 4 planned: 4 plans in 2 waves)*
